@@ -1,0 +1,5 @@
+img/
+.DS_Store
+__pycache__/
+*.gif
+*.py[cod]
