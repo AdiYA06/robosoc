@@ -1,4 +1,6 @@
 from math import *
+from machine import Pin, PWM
+import time
 class SpiderLeg:
     def __init__(self, name, COXA, FEMUR, TIBIA):
         #spider leg => COXA-FEMUR-TIBIA
@@ -120,6 +122,17 @@ class SpiderLeg:
         self.joints = jointLocation
         return jointLocation
     
+class Connection:
+    def __init__(self, pin_list):
+        self.servos = [self.make_servo(p) for p in pin_list]
+
+    def make_servo(self, pin_num):
+        pwm = PWM(Pin(pin_num))
+        pwm.freq(50)          # standard 50 Hz
+        return pwm
+        
+    
+    
 if __name__ == '__main__' :
     leg = SpiderLeg("Leg1", 43.8, 166, 88) # mm
     leg.set_angles([0,45,70])
@@ -134,3 +147,4 @@ if __name__ == '__main__' :
 
     joint_positions = leg.forwardKinematics()
     print(joint_positions)
+
