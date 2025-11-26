@@ -1,5 +1,6 @@
-from machine import Pin, PWM
+# from machine import Pin, PWM
 import time
+import leg_alg
 
 # Which GPIOs your servos are on:
 # SERVO 1 → GP0, SERVO 2 → GP1, SERVO 3 → GP2, etc.
@@ -18,9 +19,7 @@ def angle_to_duty(angle_deg):
         angle_deg = 0
     if angle_deg > 180:
         angle_deg = 180
-
     min_us = 500      # 0°
-    
     max_us = 2500     # 180°
     us = min_us + (angle_deg / 180) * (max_us - min_us)
     duty = int((us / 20000) * 65535)   # 20 ms period at 50 Hz
