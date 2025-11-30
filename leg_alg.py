@@ -1,8 +1,9 @@
 from math import *
 from machine import Pin, PWM
-import time
-class SpiderLeg:
-    def __init__(self, name, COXA, FEMUR, TIBIA):
+import time        
+
+class SpiderLeg():
+    def __init__(self, name, COXA, FEMUR, TIBIA, pin_list):
         #spider leg => COXA-FEMUR-TIBIA
         self.name = name
         self.COXA = COXA
@@ -12,13 +13,40 @@ class SpiderLeg:
         self.theta2 = 0.
         self.theta3 = 0.
         self.joints = self.forwardKinematics()
+        self.servos = [self.make_servo(p) for p in pin_list]
+
+    def make_servo(self, pin_num):
+        pwm = PWM(Pin(pin_num))
+        pwm.freq(50)          # standard 50 Hz
+        return pwm
+    
+    def angle_to_duty(self, angle_deg):
+        # Clamp angle to 0–180
+        if angle_deg < 0:
+            angle_deg = 0
+        if angle_deg > 180:
+            angle_deg = 180
+        min_us = 500      # 0°
+        max_us = 2500     # 180°
+        us = min_us + (angle_deg / 180) * (max_us - min_us)
+        duty = int((us / 20000) * 65535)   # 20 ms period at 50 Hz
+        return duty
+    
+    def turn_angles(self, angles):
+        # angles is a list like [30, 90, 150]
+        angle3 = angles[2]
+        if angle3 < 55:
+            angles[2] = 55
+        for s, a in zip(self.servos, angles):
+            s.duty_u16(self.angle_to_duty(a))
 
     def cos_rule(self, A, B, C):
         return acos((A**2 + B**2 - C**2)/(2*A*B))
     
     def set_angles(self, angles):
-        angles = self.normalize_angles(angles)
-        self.theta1, self.theta2, self.theta3 = angles
+        _angles = self.normalize_angles(angles)
+        self.theta1, self.theta2, self.theta3 = _angles
+        self.turn_angles(_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -122,16 +150,6 @@ class SpiderLeg:
         self.joints = jointLocation
         return jointLocation
     
-class Connection:
-    def __init__(self, pin_list):
-        self.servos = [self.make_servo(p) for p in pin_list]
-
-    def make_servo(self, pin_num):
-        pwm = PWM(Pin(pin_num))
-        pwm.freq(50)          # standard 50 Hz
-        return pwm
-        
-    
     
 if __name__ == '__main__' :
     leg = SpiderLeg("Leg1", 43.8, 166, 88) # mm
@@ -147,4 +165,3 @@ if __name__ == '__main__' :
 
     joint_positions = leg.forwardKinematics()
     print(joint_positions)
-
