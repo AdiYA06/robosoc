@@ -1,6 +1,9 @@
 from math import *
+import time
+# import servo_control
+
 class SpiderLeg:
-    def __init__(self, name, COXA, FEMUR, TIBIA):
+    def __init__(self, name, COXA, FEMUR, TIBIA, pin_lis = None):
         #spider leg => COXA-FEMUR-TIBIA
         self.name = name
         self.COXA = COXA
@@ -15,8 +18,9 @@ class SpiderLeg:
         return acos((A**2 + B**2 - C**2)/(2*A*B))
     
     def set_angles(self, angles):
-        angles = self.normalize_angles(angles)
-        self.theta1, self.theta2, self.theta3 = angles
+        _angles = self.normalize_angles(angles)
+        self.theta1, self.theta2, self.theta3 = _angles
+        # self.turn_angles(_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -51,7 +55,7 @@ class SpiderLeg:
             target = self.joints[3]
         x, y, z = target[0], target[1], target[2]
         
-        theta1 = atan( y / x )
+        theta1 = acos( y / x )
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
@@ -121,16 +125,30 @@ class SpiderLeg:
         return jointLocation
     
 if __name__ == '__main__' :
-    leg = SpiderLeg("Leg1", 43.8, 166, 88) # mm
-    leg.set_angles([0,45,70])
+    # Initialize a spider leg with given name and segment lengths
+    leg = SpiderLeg("Leg1", COXA=43.8, FEMUR=166, TIBIA=88) #mm
 
-    current_angle = leg.get_angles()
+    # Set the joint angles (in degrees) for the leg
+    leg.set_angles([0, 45, 70])
 
-    current_target = leg.get_target()
+    # Get the current joint angles
+    currentAngles = leg.get_angles()
 
-    newTarget = [100,100, 0]
-
+    # Get the current target position (x, y, z) of the leg tip
+    currentTarget = leg.get_target()
+    #Define the new tar4get
+    newTarget = [100, 100, 0]
+    # Calculate the joint angles required to reach a new target position using inverse kinematics
     new_angles = leg.inverseKinematics(target=newTarget)
 
+    # Calculate the joint positions based on the joint angles using forward kinematics
+    # We do this to confirm that calculated angles are the ones required to reach the new target
     joint_positions = leg.forwardKinematics()
-    print(joint_positions)
+
+    # Print results
+    print("Current Joint Angles:", currentAngles)
+    print("Current Target Position:", currentTarget)
+    print("New Joint Angles:", new_angles)
+    print("New Joint Positions:", joint_positions)
+    print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
+    print("Values in above arrays should be very close to each other")
