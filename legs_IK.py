@@ -55,7 +55,7 @@ class SpiderLeg:
             target = self.joints[3]
         x, y, z = target[0], target[1], target[2]
         
-        theta1 = acos( y / self.COXA )
+        theta1 = acos( y / x )
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
