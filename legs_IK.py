@@ -1,9 +1,9 @@
 from math import *
-from machine import Pin, PWM
-import time        
+import time
+# import servo_control
 
-class SpiderLeg():
-    def __init__(self, name, COXA, FEMUR, TIBIA, pin_list):
+class SpiderLeg:
+    def __init__(self, name, COXA, FEMUR, TIBIA, pin_lis = None):
         #spider leg => COXA-FEMUR-TIBIA
         self.name = name
         self.COXA = COXA
@@ -13,32 +13,6 @@ class SpiderLeg():
         self.theta2 = 0.
         self.theta3 = 0.
         self.joints = self.forwardKinematics()
-        self.servos = [self.make_servo(p) for p in pin_list]
-
-    def make_servo(self, pin_num):
-        pwm = PWM(Pin(pin_num))
-        pwm.freq(50)          # standard 50 Hz
-        return pwm
-    
-    def angle_to_duty(self, angle_deg):
-        # Clamp angle to 0–180
-        if angle_deg < 0:
-            angle_deg = 0
-        if angle_deg > 180:
-            angle_deg = 180
-        min_us = 500      # 0°
-        max_us = 2500     # 180°
-        us = min_us + (angle_deg / 180) * (max_us - min_us)
-        duty = int((us / 20000) * 65535)   # 20 ms period at 50 Hz
-        return duty
-    
-    def turn_angles(self, angles):
-        # angles is a list like [30, 90, 150]
-        angle3 = angles[2]
-        if angle3 < 55:
-            angles[2] = 55
-        for s, a in zip(self.servos, angles):
-            s.duty_u16(self.angle_to_duty(a))
 
     def cos_rule(self, A, B, C):
         return acos((A**2 + B**2 - C**2)/(2*A*B))
@@ -46,7 +20,7 @@ class SpiderLeg():
     def set_angles(self, angles):
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
-        self.turn_angles(_angles)
+        # self.turn_angles(_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -81,7 +55,7 @@ class SpiderLeg():
             target = self.joints[3]
         x, y, z = target[0], target[1], target[2]
         
-        theta1 = atan( y / x )
+        theta1 = acos( y / self.COXA )
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
@@ -150,18 +124,31 @@ class SpiderLeg():
         self.joints = jointLocation
         return jointLocation
     
-    
 if __name__ == '__main__' :
-    leg = SpiderLeg("Leg1", 43.8, 166, 88) # mm
-    leg.set_angles([0,45,70])
+    # Initialize a spider leg with given name and segment lengths
+    leg = SpiderLeg("Leg1", COXA=43.8, FEMUR=166, TIBIA=88) #mm
 
-    current_angle = leg.get_angles()
+    # Set the joint angles (in degrees) for the leg
+    leg.set_angles([0, 45, 70])
 
-    current_target = leg.get_target()
+    # Get the current joint angles
+    currentAngles = leg.get_angles()
 
-    newTarget = [100,100, 0]
-
+    # Get the current target position (x, y, z) of the leg tip
+    currentTarget = leg.get_target()
+    #Define the new tar4get
+    newTarget = [100, 100, 0]
+    # Calculate the joint angles required to reach a new target position using inverse kinematics
     new_angles = leg.inverseKinematics(target=newTarget)
 
+    # Calculate the joint positions based on the joint angles using forward kinematics
+    # We do this to confirm that calculated angles are the ones required to reach the new target
     joint_positions = leg.forwardKinematics()
-    print(joint_positions)
+
+    # Print results
+    print("Current Joint Angles:", currentAngles)
+    print("Current Target Position:", currentTarget)
+    print("New Joint Angles:", new_angles)
+    print("New Joint Positions:", joint_positions)
+    print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
+    print("Values in above arrays should be very close to each other")
