@@ -1,4 +1,6 @@
 from machine import Pin, PWM
+import time
+import math
 
 class servo_movement:
     def __init__(self, pin_list):
@@ -24,3 +26,28 @@ class servo_movement:
     def turn_angles(self, angles):
         for s, a in zip(self.servos, angles):
             s.duty_u16(self.angle_to_duty(a))
+
+    def ease_in_out_quad(self, t):
+        return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
+
+    def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=100):
+        start_angles = list(pre_angles)  # ensure mutable list
+
+        for i in range(steps + 1):
+            t = i / steps
+            # e = self.ease_in_out_quad(t) # basic ease motion curve.
+            e = -(math.cos(math.pi * t) - 1) / 2 # sine motion curve.
+
+            new_angles = []
+            for sa, ta in zip(start_angles, target_angles):
+                if sa == ta:
+                    # no change needed → keep constant angle
+                    new_angles.append(sa)
+                else:
+                    # easing interpolation
+                    new_angles.append(sa + (ta - sa) * e)
+
+            self.turn_angles(new_angles)
+            time.sleep(duration / steps)
+
+

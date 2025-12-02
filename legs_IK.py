@@ -22,13 +22,20 @@ class SpiderLeg:
         x = angles[1]
         x = -x if x>0 else abs(x)
         angles[1] = 90-x
+        
+        pre_angles = self.get_angles()
+        y = pre_angles[1]
+        y = -y if y>0 else abs(y)
+        pre_angles[1] = 90-y
+        
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
-        self.control.turn_angles(_angles)
+        # self.control.turn_angles(_angles, self.get_angels())
+        self.control.turn_angles_eased(_angles, pre_angles)
         return self.get_angles()
     
     def get_angles(self):
-        return [self.theta1, self.theta2, self.theta3]
+        return [self.theta1, self.theta2-90, self.theta3]
 
     def normalize_angles(self, angles):
         """
@@ -92,7 +99,6 @@ class SpiderLeg:
             theta2 = phi1 - phi3
         
         theta3 = phi1 + phi2
-
         ang = [degrees(theta1), degrees(theta2), degrees(theta3)]
         
         self.set_angles(ang)
@@ -104,7 +110,7 @@ class SpiderLeg:
             Calculate the joint positions (x, y, z) based on the given joint angles.
         '''
         if angles is None:
-            angles = [radians(self.theta1), radians(self.theta2), radians(self.theta3)]
+            angles = [radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
         theta1, theta2, theta3 = angles
 
         Xa = self.COXA * cos(theta1)
@@ -162,3 +168,4 @@ if __name__ == '__main__' :
     print("New Joint Positions:", joint_positions)
     print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
     print("Values in above arrays should be very close to each other")
+

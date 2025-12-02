@@ -36,14 +36,31 @@ class Simulator:
         # Set the title for the plot
         ax.set_title('Spider Leg Visualization')
 
+        self.set_equal_axis(ax, x, y, z)
+
         # Display the plot
         plt.show()
+
+    def set_equal_axis(self, ax, x, y, z):
+        max_range = max(
+            max(x) - min(x),
+            max(y) - min(y),
+            max(z) - min(z)
+        ) / 2
+
+        mid_x = (max(x) + min(x)) / 2
+        mid_y = (max(y) + min(y)) / 2
+        mid_z = (max(z) + min(z)) / 2
+
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
 if __name__ == '__main__':
     # Call the plot_leg function with the joint_positions
     leg = legs_IK.SpiderLeg("Leg1", COXA=43.8, FEMUR=88, TIBIA=166) #mm
     # Set the joint angles (in degrees) for the leg
-    leg.set_angles([0, 0, 90])
+    leg.set_angles([90, 30, 120])
 
     # Get the current joint angles
     currentAngles = leg.get_angles()
@@ -51,10 +68,10 @@ if __name__ == '__main__':
     # Get the current target position (x, y, z) of the leg tip
     currentTarget = leg.get_target()
     #Define the new tar4get
-    newTarget = [80, 50, -150]
+    newTarget = [70, 60, -100]
     # Calculate the joint angles required to reach a new target position using inverse kinematics
     new_angles = leg.inverseKinematics(target=newTarget)
+    print(new_angles, 'why')
     joint_positions = leg.forwardKinematics()
-    print(new_angles)
     print(joint_positions)
     Simulator(joint_positions)

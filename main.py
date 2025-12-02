@@ -9,14 +9,11 @@ SERVO_PINS = [0, 1, 2]   # change this list for more / different channels
 
 leg1 = legs_IK.SpiderLeg("Leg1", 43.8, 88, 166, SERVO_PINS)
 control = servo_control.servo_movement(SERVO_PINS)
-while True:
-    leg1.set_angles([0,0,90])
-    time.sleep(5)
-    current_angle = leg1.get_angles()
-    current_target = leg1.get_target()
-    newTarget = [80,50, -150]
-    new_angles = leg1.inverseKinematics(target=newTarget)
-    joint_positions = leg1.forwardKinematics()
-    print(new_angles)
-    time.sleep(10)
-    #leg1.set_angles([0,0,90])
+
+newTarget = [70, 60, -100]
+new_angles = leg1.inverseKinematics(target=newTarget)
+
+#leg1.set_angles([31.002719133873992,48.35442581009674,141.43745904027168])
+#print(leg1.get_angles())
+#new_angles = leg1.inverseKinematics([80,79,-150])
+#print(new_angles)
