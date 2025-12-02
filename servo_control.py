@@ -22,9 +22,5 @@ class servo_movement:
         return duty
     
     def turn_angles(self, angles):
-        # angles is a list like [30, 90, 150]
-        angle3 = angles[2]
-        if angle3 < 55:
-            angles[2] = 55
         for s, a in zip(self.servos, angles):
             s.duty_u16(self.angle_to_duty(a))
