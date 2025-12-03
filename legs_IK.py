@@ -1,10 +1,11 @@
 from math import *
 import time
-# import servo_control
+import servo_control
 
 class SpiderLeg:
-    def __init__(self, name, COXA, FEMUR, TIBIA, pin_lis = None):
+    def __init__(self, name, COXA, FEMUR, TIBIA, pin_list = None):
         #spider leg => COXA-FEMUR-TIBIA
+        self.control = servo_control.servo_movement(pin_list)
         self.name = name
         self.COXA = COXA
         self.FEMUR = FEMUR
@@ -18,25 +19,44 @@ class SpiderLeg:
         return acos((A**2 + B**2 - C**2)/(2*A*B))
     
     def set_angles(self, angles):
+        angles[0] += 90
+
+        x = angles[1]
+        x = -x if x>0 else abs(x)
+        angles[1] = 90-x
+        
+        pre_angles = self.get_angles()
+        y = pre_angles[1]
+        #pre_angles[0] += 90
+        y = -y if y>0 else abs(y)
+        pre_angles[1] = 90-y
+        
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
-        # self.turn_angles(_angles)
+        #self.control.turn_angles(_angles)
+        self.control.turn_angles_eased(_angles, pre_angles)
         return self.get_angles()
     
     def get_angles(self):
-        return [self.theta1, self.theta2, self.theta3]
+        return [self.theta1, self.theta2-90, self.theta3]
 
     def normalize_angles(self, angles):
-        '''
-            Normalize joint angles to be in the range [-180, 180] degrees.
-            Args:
-                angles(list): a list of joint angles in degrees.
+        """
+        Normalize joint angles to be in the range [-180, 180] degrees.
+        
+        Args:
+            angles (list): A list of joint angles in degrees.
             
-            Returns:
-                list: a list of normalized joint angles in degrees.
-        '''
+        Returns:
+            list: A list of normalized joint angles in degrees.
+        """
         for idx, ang in enumerate(angles):
-            angles[idx] = ((ang + 180) % 360) -180
+            sign = 1
+            if ang < 0:
+                sign = -1
+            angles[idx] = sign * (abs(ang) % 360)
+            if abs(ang) > 180:
+                angles[idx] = ang - (360 * sign)
         return angles
     
     def get_target(self):
@@ -53,9 +73,10 @@ class SpiderLeg:
         '''
         if target is None:
             target = self.joints[3]
-        x, y, z = target[0], target[1], target[2]
+        x, y, z = target[0], abs(target[1]), target[2]
         
-        theta1 = acos( y / x )
+        theta1 = atan( y / x )
+        theta1 = -theta1 if target[1] >= 0 else theta1
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
@@ -82,7 +103,6 @@ class SpiderLeg:
             theta2 = phi1 - phi3
         
         theta3 = phi1 + phi2
-
         ang = [degrees(theta1), degrees(theta2), degrees(theta3)]
         
         self.set_angles(ang)
@@ -94,7 +114,7 @@ class SpiderLeg:
             Calculate the joint positions (x, y, z) based on the given joint angles.
         '''
         if angles is None:
-            angles = [radians(self.theta1), radians(self.theta2), radians(self.theta3)]
+            angles = [radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
         theta1, theta2, theta3 = angles
 
         Xa = self.COXA * cos(theta1)
@@ -152,3 +172,5 @@ if __name__ == '__main__' :
     print("New Joint Positions:", joint_positions)
     print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
     print("Values in above arrays should be very close to each other")
+
+
