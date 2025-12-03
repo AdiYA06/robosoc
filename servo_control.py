@@ -30,7 +30,7 @@ class servo_movement:
     def ease_in_out_quad(self, t):
         return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
 
-    def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=100):
+    def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=200):
         start_angles = list(pre_angles)  # ensure mutable list
 
         for i in range(steps + 1):
@@ -49,5 +49,3 @@ class servo_movement:
 
             self.turn_angles(new_angles)
             time.sleep(duration / steps)
-
-

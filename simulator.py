@@ -68,9 +68,10 @@ if __name__ == '__main__':
     # Get the current target position (x, y, z) of the leg tip
     currentTarget = leg.get_target()
     #Define the new tar4get
-    newTarget = [70, 1, -100]
+    newTarget = [90, 80, -100]
     # Calculate the joint angles required to reach a new target position using inverse kinematics
     new_angles = leg.inverseKinematics(target=newTarget)
+    print(new_angles)
     joint_positions = leg.forwardKinematics()
     print(joint_positions[3])
     Simulator(joint_positions)

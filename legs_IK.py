@@ -1,11 +1,11 @@
 from math import *
 import time
-# import servo_control
+import servo_control
 
 class SpiderLeg:
     def __init__(self, name, COXA, FEMUR, TIBIA, pin_list = None):
         #spider leg => COXA-FEMUR-TIBIA
-        # self.control = servo_control.servo_movement(pin_list)
+        self.control = servo_control.servo_movement(pin_list)
         self.name = name
         self.COXA = COXA
         self.FEMUR = FEMUR
@@ -19,19 +19,22 @@ class SpiderLeg:
         return acos((A**2 + B**2 - C**2)/(2*A*B))
     
     def set_angles(self, angles):
+        angles[0] += 90
+
         x = angles[1]
         x = -x if x>0 else abs(x)
         angles[1] = 90-x
         
         pre_angles = self.get_angles()
         y = pre_angles[1]
+        #pre_angles[0] += 90
         y = -y if y>0 else abs(y)
         pre_angles[1] = 90-y
         
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
-        # self.control.turn_angles(_angles, self.get_angels())
-        # self.control.turn_angles_eased(_angles, pre_angles)
+        #self.control.turn_angles(_angles)
+        self.control.turn_angles_eased(_angles, pre_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -72,8 +75,8 @@ class SpiderLeg:
             target = self.joints[3]
         x, y, z = target[0], abs(target[1]), target[2]
         
-        theta1 = acos( y / x )
-        theta1 = theta1 if target[1] > 0 else -theta1
+        theta1 = atan( y / x )
+        theta1 = -theta1 if target[1] >= 0 else theta1
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
@@ -111,7 +114,7 @@ class SpiderLeg:
             Calculate the joint positions (x, y, z) based on the given joint angles.
         '''
         if angles is None:
-            angles = [pi/2 - radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
+            angles = [radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
         theta1, theta2, theta3 = angles
 
         Xa = self.COXA * cos(theta1)
@@ -169,4 +172,5 @@ if __name__ == '__main__' :
     print("New Joint Positions:", joint_positions)
     print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
     print("Values in above arrays should be very close to each other")
+
 
