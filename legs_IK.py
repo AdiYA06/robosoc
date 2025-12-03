@@ -70,9 +70,10 @@ class SpiderLeg:
         '''
         if target is None:
             target = self.joints[3]
-        x, y, z = target[0], target[1], target[2]
+        x, y, z = target[0], abs(target[1]), target[2]
         
         theta1 = acos( y / x )
+        theta1 = theta1 if target[1] > 0 else -theta1
         Xa = cos(theta1) * self.COXA
         Ya = sin(theta1) * self.COXA
         
