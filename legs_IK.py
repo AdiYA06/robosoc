@@ -1,11 +1,11 @@
 from math import *
 import time
-import servo_control
+# import servo_control
 
 class SpiderLeg:
     def __init__(self, name, COXA, FEMUR, TIBIA, pin_list = None):
         #spider leg => COXA-FEMUR-TIBIA
-        self.control = servo_control.servo_movement(pin_list)
+        # self.control = servo_control.servo_movement(pin_list)
         self.name = name
         self.COXA = COXA
         self.FEMUR = FEMUR
@@ -31,7 +31,7 @@ class SpiderLeg:
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
         # self.control.turn_angles(_angles, self.get_angels())
-        self.control.turn_angles_eased(_angles, pre_angles)
+        # self.control.turn_angles_eased(_angles, pre_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -111,7 +111,7 @@ class SpiderLeg:
             Calculate the joint positions (x, y, z) based on the given joint angles.
         '''
         if angles is None:
-            angles = [radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
+            angles = [pi/2 - radians(self.theta1), radians(self.theta2) - pi/2, radians(self.theta3)]
         theta1, theta2, theta3 = angles
 
         Xa = self.COXA * cos(theta1)
