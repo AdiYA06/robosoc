@@ -8,7 +8,9 @@ class servo_movement:
 
     def make_servo(self, pin_num):
         pwm = PWM(Pin(pin_num))
-        pwm.freq(50)          # standard 50 Hz
+
+        # standard 50 Hz
+        pwm.freq(50)
         return pwm
     
     def angle_to_duty(self, angle_deg):
@@ -28,10 +30,38 @@ class servo_movement:
             s.duty_u16(self.angle_to_duty(a))
 
     def ease_in_out_quad(self, t):
+        """
+            Easing coefficient function, curve.
+            Parameters
+            ----------
+                t(float): a float within [0, 1], basically step.
+        """
         return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
 
     def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=200):
-        start_angles = list(pre_angles)  # ensure mutable list
+        """
+        Smoothly interpolate servos from pre_angles to target_angles using an ease-in-out sine curve.
+        Parameters
+        ----------
+        target_angles : Sequence[float]
+            Iterable of target angles for each servo (in the same units expected by self.turn_angles).
+        pre_angles : Sequence[float]
+            Iterable of starting angles corresponding to target_angles. Values are copied at call time.
+        duration : float, optional
+            Total time in seconds over which the interpolation runs (default 0.5). The method is blocking
+            for the duration of the motion.
+        steps : int, optional
+            Number of discrete interpolation steps (default 200). Higher values give smoother motion.
+        ------
+        ValueError
+            If steps is not a positive integer or duration is negative. (time.sleep will also raise for
+            invalid sleep values.)
+        Examples
+        --------
+        # Smoothly move from current_angles to goal_angles over 0.8 seconds with 400 steps:
+        # self.turn_angles_eased(goal_angles, current_angles, duration=0.8, steps=400)
+        """
+        start_angles = list(pre_angles)
 
         for i in range(steps + 1):
             t = i / steps
