@@ -60,7 +60,7 @@ class Simulator:
         delta = step
         num_of_steps = 100
         while True:  # Loop forever
-            p1,p2,p3 = [-130,-100], [0,20], [130,-100]
+            p1,p2,p3 = [-130,-100], [0,20], [130,-100] # p1 = [-T/2, S], p2 = [0, S+2A], p3 = [T/2, S]
             for t in range(0,num_of_steps+1,delta):
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
                 newTarget = [160, y, z]
