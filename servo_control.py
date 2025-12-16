@@ -1,6 +1,6 @@
 from machine import Pin, PWM
 import time
-import math
+from math import *
 
 class servo_movement:
     def __init__(self, pin_list):
@@ -66,7 +66,7 @@ class servo_movement:
         for i in range(steps + 1):
             t = i / steps
             # e = self.ease_in_out_quad(t) # basic ease motion curve.
-            e = -(math.cos(math.pi * t) - 1) / 2 # sine motion curve.
+            e = -(cos(pi * t) - 1) / 2 # sine motion curve.
 
             new_angles = []
             for sa, ta in zip(start_angles, target_angles):

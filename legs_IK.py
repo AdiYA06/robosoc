@@ -55,7 +55,8 @@ class SpiderLeg:
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
         if not is_simulate:
-            self.control.turn_angles_eased(_angles, pre_angles)
+            # self.control.turn_angles_eased(_angles, pre_angles)
+            self.control.turn_angles(_angles)
         return self.get_angles()
     
     def get_angles(self):

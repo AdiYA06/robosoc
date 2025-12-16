@@ -58,25 +58,24 @@ class Simulator:
 
     def moving(self, step = 1):
         delta = step
-        p1,p2,p3 = [-130,-100], [0,0], [130,-100]
+        num_of_steps = 100
         while True:  # Loop forever
-            for t in range(0,101,delta):
-                y, z = self.tripot.bezier_curve(p1,p2,p3, t/100)
+            p1,p2,p3 = [-130,-100], [0,20], [130,-100]
+            for t in range(0,num_of_steps+1,delta):
+                y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
                 newTarget = [160, y, z]
                 leg.inverseKinematics(target=newTarget)
                 joint_positions = leg.forwardKinematics()
                 sim.plot_leg(joint_positions)
                 print([round(v) for v in joint_positions[3]])
-                time.sleep(0.02)
-
-            for t in range(0,101,delta):
-                y, z = self.tripot.bezier_curve(p1,p2,p3, t/100)
+            p1,p2,p3 = [-130,-100], [0,-100], [130,-100]
+            for t in range(0,num_of_steps+1,delta):
+                y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
                 newTarget = [160, -y, z]
                 leg.inverseKinematics(target=newTarget)
                 joint_positions = leg.forwardKinematics()
                 sim.plot_leg(joint_positions)
                 print([round(v) for v in joint_positions[3]])
-                time.sleep(0.02)
 
 if __name__ == '__main__':
     leg = legs_IK.SpiderLeg("Leg1", COXA=43.8, FEMUR=88, TIBIA=166)
