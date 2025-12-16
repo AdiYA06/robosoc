@@ -2,10 +2,12 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import legs_IK
 import time
+import tripot_gait
 
 class Simulator:
     def __init__(self, leg):
         self.leg = leg
+        self.tripot = tripot_gait.Tripot_gait()
         plt.ion()
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
@@ -54,30 +56,31 @@ class Simulator:
         self.ax.set_ylim(mid_y - max_range, mid_y + max_range)
         self.ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    def moving(self, step):
+    def moving(self, step = 1):
         delta = step
+        p1,p2,p3 = [-130,-100], [0,0], [130,-100]
         while True:  # Loop forever
-            # Move leg from z = -100 to z = 0
-            for z in range(delta, -delta, -5):  # include 0
-                newTarget = [100, z, -100]
+            for t in range(0,101,delta):
+                y, z = self.tripot.bezier_curve(p1,p2,p3, t/100)
+                newTarget = [160, y, z]
                 leg.inverseKinematics(target=newTarget)
                 joint_positions = leg.forwardKinematics()
-                print([round(v) for v in joint_positions[3]])
                 sim.plot_leg(joint_positions)
-                time.sleep(0.05)  # smaller delay for smoother motion
+                print([round(v) for v in joint_positions[3]])
+                time.sleep(0.02)
 
-            # Move leg back from z = 0 to z = -100
-            for z in range(-delta, delta, 5):
-                newTarget = [100, z, -100]
+            for t in range(0,101,delta):
+                y, z = self.tripot.bezier_curve(p1,p2,p3, t/100)
+                newTarget = [160, -y, z]
                 leg.inverseKinematics(target=newTarget)
                 joint_positions = leg.forwardKinematics()
-                print([round(v) for v in joint_positions[3]])
                 sim.plot_leg(joint_positions)
-                time.sleep(0.05)
+                print([round(v) for v in joint_positions[3]])
+                time.sleep(0.02)
 
 if __name__ == '__main__':
     leg = legs_IK.SpiderLeg("Leg1", COXA=43.8, FEMUR=88, TIBIA=166)
     leg.set_angles([90, 30, 120])
 
     sim = Simulator(leg)
-    sim.moving(150)
+    sim.moving()
