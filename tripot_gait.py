@@ -3,25 +3,17 @@ import numpy as np
 import time
 
 class Tripot_gait:
-    def __init__(self, beta_ang = 60):
+    def __init__(self, beta_ang = np.pi/4):
         self.legs_ROT_dict = {
             'legi' : self.rotation_matrix(0),
             'legl' : self.rotation_matrix(pi),
-            'legj' : self.rotation_matrix(-beta_ang),
-            'legm' : self.rotation_matrix(-beta_ang),
-            'legk' : self.rotation_matrix(beta_ang),
-            'legn' : self.rotation_matrix(beta_ang)
-        }
-        self.legs_offset = {
-            'legi' : [30,0,0],
-            'legl' : [30,0,0],
-            'legj' : [30,0,0],
-            'legm' : [30,0,0],
-            'legk' : [30,0,0],
-            'legn' : [30,0,0]
+            'legj' : self.rotation_matrix(beta_ang),
+            'legm' : self.rotation_matrix(pi + beta_ang),
+            'legk' : self.rotation_matrix(pi/2 + beta_ang),
+            'legn' : self.rotation_matrix(-beta_ang)
         }
 
-    def bezier_curve(self, p1, p2, p3, i, duration = 0.5 ,steps=100):
+    def bezier_curve(self, p1, p2, p3, i, duration = 0.5/3 ,steps=100):
         t = i / steps
         te = 0.5 * (1 - cos(pi * t))  # easing
 

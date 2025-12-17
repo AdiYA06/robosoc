@@ -6,16 +6,16 @@ import tripot_gait
 import numpy as np
 
 class Simulator:
-    def __init__(self, leg):
-        self.leg = leg
-        self.tripot = tripot_gait.Tripot_gait()
+    def __init__(self, legs):
+        self.legs = legs
+        self.tripot = tripot_gait.Tripot_gait(np.pi/4)
         self.leg_config = {
-            'Legi': {'angle': 0,            'x': 90},
-            'Legj': {'angle': -np.pi/4,     'x': 120},
-            'Legk': {'angle': np.pi/4,      'x': 120},
-            'Legl': {'angle': np.pi,        'x': 90},
-            'Legm': {'angle': -np.pi/4,     'x': 110},
-            'Legn': {'angle': np.pi/4,      'x': 110},
+            'legi': {'y': 0, 'x': 50},
+            'legj': {'y': 40, 'x': 50},
+            'legk': {'y': 40, 'x': -50},
+            'legl': {'y': 0, 'x': -50},
+            'legm': {'y': -40, 'x': -50},
+            'legn': {'y': -40, 'x': 50},
         }
         plt.ion()
         self.fig = plt.figure()
@@ -27,15 +27,19 @@ class Simulator:
         self.ax.set_zlabel('Z-axis')
         self.ax.set_title('Spider Leg Visualization')
 
-        # Initial joint positions
-        joint_positions = self.leg.forwardKinematics()
-        self.plot_leg(leg, joint_positions)
+        # Initial joint positions for all legs
+        for leg in self.legs:
+            joint_positions = leg.forwardKinematics()
+            self.plot_leg(leg, joint_positions)
 
     def plot_leg(self, leg, joint_positions):
-        self.ax.cla()  # Clear previous plot
         cfg = self.leg_config[leg.name]
-        R = self.rot(cfg['angle'])
-        t = np.array([cfg['x'], 0, 0])
+        # R = self.rot(cfg['angle'])
+        R = self.tripot.legs_ROT_dict[leg.name]
+        t = np.array([cfg['x'], cfg['y'], 0])
+        # Display leg name near hip joint
+        hip_pos = R @ np.array(joint_positions[2]) + t
+        self.ax.text(hip_pos[0], hip_pos[1], hip_pos[2]+10, leg.name, fontsize=10, color='red')
         x, y, z = [], [], []
         for p in joint_positions:
             p_body = R @ np.array(p) + t
@@ -46,23 +50,11 @@ class Simulator:
         # Plot leg segments
         self.ax.plot(x, y, z, "-o", linewidth=2, markersize=8)
 
-        # Calculate midpoints for labels
-        coxa_mid = [(x[0] + x[1])/2, (y[0] + y[1])/2, (z[0] + z[1])/2]
-        femur_mid = [(x[1] + x[2])/2, (y[1] + y[2])/2, (z[1] + z[2])/2]
-        tibia_mid = [(x[2] + x[3])/2, (y[2] + y[3])/2, (z[2] + z[3])/2]
-
-        self.ax.text(coxa_mid[0], coxa_mid[1], coxa_mid[2], 'Coxa', fontsize=12, color='blue')
-        self.ax.text(femur_mid[0], femur_mid[1], femur_mid[2], 'Femur', fontsize=12, color='blue')
-        self.ax.text(tibia_mid[0], tibia_mid[1], tibia_mid[2], 'Tibia', fontsize=12, color='blue')
-
         # Keep the axes fixed but do NOT reset view
         range_limit = 300
         self.ax.set_xlim(-range_limit, range_limit)
         self.ax.set_ylim(-range_limit, range_limit)
         self.ax.set_zlim(-range_limit, range_limit)
-
-        plt.draw()
-        plt.pause(0.001)
 
     def set_equal_axis(self, x, y, z):
         max_range = max(max(x) - min(x), max(y) - min(y), max(z) - min(z)) / 2
@@ -73,45 +65,51 @@ class Simulator:
         self.ax.set_ylim(mid_y - max_range, mid_y + max_range)
         self.ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    def moving(self, leg, step = 1):
+    def moving(self, legs, step = 1):
         delta = step
         num_of_steps = 100
+        T = 160
+        S = -70
+        A = 20
         while True:  # Loop forever
-            p1,p2,p3 = [-130,-100], [0,20], [130,-100] # p1 = [-T/2, S], p2 = [0, S+2A], p3 = [T/2, S]
+            p1,p2,p3 = [-T/2,S], [0,S+2*A], [T/2,S] # p1 = [-T/2, S], p2 = [0, S+2A], p3 = [T/2, S] T = 160
             for t in range(0,num_of_steps+1,delta):
                 self.ax.cla()
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                newTarget = [160, y, z]
-                leg.inverseKinematics(target=newTarget)
-                joint_positions = leg.forwardKinematics()
-                sim.plot_leg(leg, joint_positions)
-                print([round(v) for v in joint_positions[3]])
-            p1,p2,p3 = [-130,-100], [0,-100], [130,-100]
+                # Update all legs together
+                for leg in legs:
+                    leg.inverseKinematics(target=[160, y, z])
+                # Plot all legs after updating
+                for leg in legs:
+                    joint_positions = leg.forwardKinematics()
+                    self.plot_leg(leg, joint_positions)
+                plt.draw()
+                plt.pause(0.001)
+            p2 = [0,S]
             for t in range(0,num_of_steps+1,delta):
                 self.ax.cla()
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                newTarget = [160, -y, z]
-                leg.inverseKinematics(target=newTarget)
-                joint_positions = leg.forwardKinematics()
-                sim.plot_leg(leg, joint_positions)
-                print([round(v) for v in joint_positions[3]])
+                # Update all legs together
+                for leg in legs:
+                    leg.inverseKinematics(target=[160, -y, z])
+                # Plot all legs after updating
+                for leg in legs:
+                    joint_positions = leg.forwardKinematics()
+                    self.plot_leg(leg, joint_positions)
+                plt.draw()
+                plt.pause(0.001)
 
 if __name__ == '__main__':
     legs = [
-        legs_IK.SpiderLeg("Legi", 43.8, 88, 166),
-        legs_IK.SpiderLeg("Legj", 43.8, 88, 166),
-        legs_IK.SpiderLeg("Legk", 43.8, 88, 166),
-        legs_IK.SpiderLeg("Legl", 43.8, 88, 166),
-        legs_IK.SpiderLeg("Legm", 43.8, 88, 166),
-        legs_IK.SpiderLeg("Legn", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legi", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legj", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legk", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legl", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legm", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legn", 43.8, 88, 166),
     ]
-    legi = legs[0]
-    legj = legs[1]
-    legk = legs[2]
-    legl = legs[3]
-    legm = legs[4]
-    legn = legs[5]
-    legi.set_angles([90, 30, 120])
+    for leg in legs:
+        leg.set_angles([90, 30, 120])
 
-    sim = Simulator(legi)
-    sim.moving(legi)
+    sim = Simulator(legs)
+    sim.moving(legs)
