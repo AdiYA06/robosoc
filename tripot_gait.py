@@ -14,10 +14,10 @@ class Tripot_gait:
         }
         self.legs_offset = {
             'legi' : [30,0,0],
-            'legl' : [-30,0,0],
+            'legl' : [30,0,0],
             'legj' : [30,0,0],
-            'legm' : [-30,0,0],
-            'legk' : [-30,0,0],
+            'legm' : [30,0,0],
+            'legk' : [30,0,0],
             'legn' : [30,0,0]
         }
 
@@ -36,9 +36,9 @@ class Tripot_gait:
             [sin(beta), cos(beta),  0],
             [0,         0,          1]
         ]
-        return ROT
+        return np.array(ROT)
     
 if __name__ == '__main__':
     ang = Tripot_gait()
     np.set_printoptions(suppress=True, precision=3)
-    print(np.dot(ang.legs_ROT_dict['legj'],[160,0,-100]))
+    # print(np.dot(ang.legs_ROT_dict['legj'],[160,0,-100]))
