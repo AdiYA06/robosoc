@@ -13,7 +13,7 @@ class Tripot_gait:
             'legn' : self.rotation_matrix(-beta_ang)
         }
 
-    def bezier_curve(self, p1, p2, p3, i, duration = 0.5/3 ,steps=100):
+    def bezier_curve(self, p1, p2, p3, i, duration = 0.5 ,steps=100):
         t = i / steps
         te = 0.5 * (1 - cos(pi * t))  # easing
 
