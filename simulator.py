@@ -3,20 +3,12 @@ from mpl_toolkits.mplot3d import Axes3D
 import legs_IK
 import time
 import tripot_gait
-import numpy as np
+from math import *
 
 class Simulator:
     def __init__(self, legs):
         self.legs = legs
-        self.tripot = tripot_gait.Tripot_gait(np.pi/4)
-        self.leg_config = {
-            'legi': {'y': 0, 'x': 50},
-            'legj': {'y': 40, 'x': 50},
-            'legk': {'y': 40, 'x': -50},
-            'legl': {'y': 0, 'x': -50},
-            'legm': {'y': -40, 'x': -50},
-            'legn': {'y': -40, 'x': 50},
-        }
+        self.tripot = tripot_gait.Tripot_gait(pi / 4)
         self.leg_config = {
             'legi': {'y': 0, 'x': 50},
             'legj': {'y': 40, 'x': 50},
@@ -28,7 +20,6 @@ class Simulator:
         plt.ion()
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
-        self.rot = lambda x :self.tripot.rotation_matrix(x)
         
         self.ax.set_xlabel('X-axis')
         self.ax.set_ylabel('Y-axis')
@@ -44,13 +35,22 @@ class Simulator:
         cfg = self.leg_config[leg.name]
         # R = self.rot(cfg['angle'])
         R = self.tripot.legs_ROT_dict[leg.name]
-        t = np.array([cfg['x'], cfg['y'], 0])
+        t = [cfg['x'], cfg['y'], 0]
         # Display leg name near hip joint
-        hip_pos = R @ np.array(joint_positions[2]) + t
+        jp = joint_positions[2]
+        hip_pos = [
+            R[0][0]*jp[0] + R[0][1]*jp[1] + R[0][2]*jp[2] + t[0],
+            R[1][0]*jp[0] + R[1][1]*jp[1] + R[1][2]*jp[2] + t[1],
+            R[2][0]*jp[0] + R[2][1]*jp[1] + R[2][2]*jp[2] + t[2],
+        ]
         self.ax.text(hip_pos[0], hip_pos[1], hip_pos[2]+10, leg.name, fontsize=10, color='red')
         x, y, z = [], [], []
         for p in joint_positions:
-            p_body = R @ np.array(p) + t
+            p_body = [
+                R[0][0]*p[0] + R[0][1]*p[1] + R[0][2]*p[2] + t[0],
+                R[1][0]*p[0] + R[1][1]*p[1] + R[1][2]*p[2] + t[1],
+                R[2][0]*p[0] + R[2][1]*p[1] + R[2][2]*p[2] + t[2],
+            ]
             x.append(p_body[0])
             y.append(p_body[1])
             z.append(p_body[2])
@@ -75,7 +75,7 @@ class Simulator:
 
     def moving(self, legs, step = 1):
         delta = step
-        num_of_steps = 100
+        num_of_steps = 50
         T = 160
         S = -70
         A = 20
@@ -84,10 +84,13 @@ class Simulator:
             for t in range(0,num_of_steps+1,delta):
                 self.ax.cla()
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                # Update all legs together
                 for leg in legs:
                     R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
-                    target = np.array([160, 0, z]) + R@np.array([0,y,0])
+                    target = [
+                        150 + R[0][1]*y,
+                        0   + R[1][1]*y,
+                        z   + R[2][1]*y,
+                    ]
                     leg.inverseKinematics(target)
                     joint_positions = leg.forwardKinematics()
                     self.plot_leg(leg, joint_positions)
@@ -97,10 +100,13 @@ class Simulator:
             for t in range(0,num_of_steps+1,delta):
                 self.ax.cla()
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                # Update all legs together
                 for leg in legs:
                     R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
-                    target = np.array([160, 0, z]) + R@np.array([0,-y,0])
+                    target = [
+                        150 - R[0][1]*y,
+                        0   - R[1][1]*y,
+                        z   - R[2][1]*y,
+                    ]
                     leg.inverseKinematics(target)
                     joint_positions = leg.forwardKinematics()
                     self.plot_leg(leg, joint_positions)

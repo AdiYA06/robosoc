@@ -13,7 +13,7 @@ control = servo_control.servo_movement(SERVO_PINS)
 tripot = tripot_gait.Tripot_gait()
 
 delta = 1
-num_of_steps = 100
+num_of_steps = 500
 T = 160
 S = -70
 A = 20
@@ -23,12 +23,10 @@ while True:
         y, z = tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
         for leg in legs:
             leg.inverseKinematics(target=[160, y, z])
-        for leg in legs:
             joint_positions = leg.forwardKinematics()
     p2 = [0,S]
     for t in range(0,num_of_steps+1,delta):
         y, z = tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
         for leg in legs:
             leg.inverseKinematics(target=[160, -y, z])
-        for leg in legs:
             joint_positions = leg.forwardKinematics()

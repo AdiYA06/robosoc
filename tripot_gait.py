@@ -1,9 +1,8 @@
 from math import *
-import numpy as np
 import time
 
 class Tripot_gait:
-    def __init__(self, beta_ang = np.pi/4):
+    def __init__(self, beta_ang = pi/4):
         self.legs_ROT_dict = {
             'legi' : self.rotation_matrix(0),
             'legl' : self.rotation_matrix(pi),
@@ -36,9 +35,7 @@ class Tripot_gait:
             [sin(beta), cos(beta),  0],
             [0,         0,          1]
         ]
-        return np.array(ROT)
+        return ROT
     
 if __name__ == '__main__':
     ang = Tripot_gait()
-    np.set_printoptions(suppress=True, precision=3)
-    # print(np.dot(ang.legs_ROT_dict['legj'],[160,0,-100]))
