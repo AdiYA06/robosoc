@@ -12,6 +12,14 @@ class Tripot_gait:
             'legk' : self.rotation_matrix(pi/2 + beta_ang),
             'legn' : self.rotation_matrix(-beta_ang)
         }
+        self.anti_beta_dict = {
+            'legi' : 0,
+            'legl' : -pi,
+            'legj' : -beta_ang,
+            'legm' : -(pi + beta_ang),
+            'legk' : -(pi/2 + beta_ang),
+            'legn' : -(-beta_ang)
+        }
 
     def bezier_curve(self, p1, p2, p3, i, duration = 0.5 ,steps=100):
         t = i / steps

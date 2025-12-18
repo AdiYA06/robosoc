@@ -17,6 +17,14 @@ class Simulator:
             'legm': {'y': -40, 'x': -50},
             'legn': {'y': -40, 'x': 50},
         }
+        self.leg_config = {
+            'legi': {'y': 0, 'x': 50},
+            'legj': {'y': 40, 'x': 50},
+            'legk': {'y': 40, 'x': -50},
+            'legl': {'y': 0, 'x': -50},
+            'legm': {'y': -40, 'x': -50},
+            'legn': {'y': -40, 'x': 50},
+        }
         plt.ion()
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
@@ -78,9 +86,9 @@ class Simulator:
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
                 # Update all legs together
                 for leg in legs:
-                    leg.inverseKinematics(target=[160, y, z])
-                # Plot all legs after updating
-                for leg in legs:
+                    R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
+                    target = np.array([160, 0, z]) + R@np.array([0,y,0])
+                    leg.inverseKinematics(target)
                     joint_positions = leg.forwardKinematics()
                     self.plot_leg(leg, joint_positions)
                 plt.draw()
@@ -91,9 +99,9 @@ class Simulator:
                 y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
                 # Update all legs together
                 for leg in legs:
-                    leg.inverseKinematics(target=[160, -y, z])
-                # Plot all legs after updating
-                for leg in legs:
+                    R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
+                    target = np.array([160, 0, z]) + R@np.array([0,-y,0])
+                    leg.inverseKinematics(target)
                     joint_positions = leg.forwardKinematics()
                     self.plot_leg(leg, joint_positions)
                 plt.draw()
@@ -106,7 +114,7 @@ if __name__ == '__main__':
         legs_IK.SpiderLeg("legk", 43.8, 88, 166),
         legs_IK.SpiderLeg("legl", 43.8, 88, 166),
         legs_IK.SpiderLeg("legm", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legn", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legn", 43.8, 88, 166)
     ]
     for leg in legs:
         leg.set_angles([90, 30, 120])
