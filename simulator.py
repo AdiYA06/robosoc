@@ -73,45 +73,68 @@ class Simulator:
         self.ax.set_ylim(mid_y - max_range, mid_y + max_range)
         self.ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    def moving(self, legs, step = 1):
-        delta = step
+    def gait_phase(self, legs, swing_legs, p1, p3, S, A, num_of_steps, step):
+        for t in range(0, num_of_steps + 1, step):
+            self.ax.cla()
+            self.ax.set_xlim(-300, 300)
+            self.ax.set_ylim(-300, 300)
+            self.ax.set_zlim(-300, 300)
+
+            # swing & stance curves
+            p2_up = [0, S + 2*A]
+            p2_down = [0, S]
+
+            y_up, z_up = self.tripot.bezier_curve(p1, p2_up, p3, t, steps=num_of_steps)
+            y_down, z_down = self.tripot.bezier_curve(p1, p2_down, p3, t, steps=num_of_steps)
+
+            for leg in legs:
+                R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
+
+                if leg.name in swing_legs:
+                    y, z = y_up, z_up
+                    sign = +1
+                else:
+                    y, z = y_down, z_down
+                    sign = -1
+
+                target = [
+                    150 + sign * R[0][1] * y,
+                    0   + sign * R[1][1] * y,
+                    z   + sign * R[2][1] * y,
+                ]
+
+                leg.inverseKinematics(target)
+                self.plot_leg(leg, leg.forwardKinematics())
+
+            plt.draw()
+            plt.pause(0.001)
+
+    def moving(self, legs, step=1):
         num_of_steps = 50
-        T = 160
+        T = 100
         S = -70
         A = 20
-        while True:  # Loop forever
-            p1,p2,p3 = [-T/2,S], [0,S+2*A], [T/2,S] # p1 = [-T/2, S], p2 = [0, S+2A], p3 = [T/2, S] T = 160
-            for t in range(0,num_of_steps+1,delta):
-                self.ax.cla()
-                y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                for leg in legs:
-                    R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
-                    target = [
-                        150 + R[0][1]*y,
-                        0   + R[1][1]*y,
-                        z   + R[2][1]*y,
-                    ]
-                    leg.inverseKinematics(target)
-                    joint_positions = leg.forwardKinematics()
-                    self.plot_leg(leg, joint_positions)
-                plt.draw()
-                plt.pause(0.001)
-            p2 = [0,S]
-            for t in range(0,num_of_steps+1,delta):
-                self.ax.cla()
-                y, z = self.tripot.bezier_curve(p1,p2,p3, t, steps = num_of_steps)
-                for leg in legs:
-                    R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
-                    target = [
-                        150 - R[0][1]*y,
-                        0   - R[1][1]*y,
-                        z   - R[2][1]*y,
-                    ]
-                    leg.inverseKinematics(target)
-                    joint_positions = leg.forwardKinematics()
-                    self.plot_leg(leg, joint_positions)
-                plt.draw()
-                plt.pause(0.001)
+
+        p1 = [-T/2, S]
+        p3 = [ T/2, S]
+
+        tripod_A = {'legi', 'legk', 'legm'}
+        tripod_B = {'legj', 'legl', 'legn'}
+
+        while True:
+            # Phase A
+            self.gait_phase(
+                legs, tripod_A,
+                p1, p3, S, A,
+                num_of_steps, step
+            )
+
+            # Phase B (second half of cycle)
+            self.gait_phase(
+                legs, tripod_B,
+                p1, p3, S, A,
+                num_of_steps, step
+            )
 
 if __name__ == '__main__':
     legs = [
