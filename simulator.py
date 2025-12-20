@@ -99,6 +99,24 @@ class Simulator:
 
                     plt.draw()
                     plt.pause(0.001)
+        
+    def turning(self, legs, angle = 70, S = -100, A = 50, step = 10, xpos = 150):
+        tripod_A = {'legi', 'legk', 'legm'}
+        tripod_B = {'legj', 'legl', 'legn'}
+
+        tripods = [tripod_A, tripod_B]
+        while True:
+            self.ax.cla()
+            for leg in legs:
+                if leg.name in tripod_A:
+                    leg.inverseKinematics([xpos, 0, S + A])
+                else:
+                    leg.inverseKinematics([xpos, 0, S])
+                self.plot_leg(leg, leg.forwardKinematics())
+
+            plt.draw()
+            plt.pause(0.001)
+
 
 if __name__ == '__main__':
     legs = [
@@ -113,4 +131,4 @@ if __name__ == '__main__':
         leg.set_angles([90, 30, 120])
 
     sim = Simulator(legs)
-    sim.movement(legs)
+    sim.turning(legs)
