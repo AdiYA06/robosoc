@@ -25,7 +25,7 @@ class SpiderLeg:
         self.TIBIA = TIBIA
         self.theta1 = 90.
         self.theta2 = 160.
-        self.theta3 = 150.
+        self.theta3 = 130.
         self.joints = self.forwardKinematics()
 
     def clamp(self, x, min_val=-1.0, max_val=1.0):

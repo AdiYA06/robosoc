@@ -72,9 +72,9 @@ class Simulator:
         self.ax.set_ylim(mid_y - max_range, mid_y + max_range)
         self.ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    def movement(self, legs, angle = 0, T = 140, S = -100, A = 20, step = 100, xpos = 150):
+    def movement(self, legs, angle = 0, T = 120, S = -100, A = 20, step = 100, xpos = 150):
         p1 = [-T/2, S]
-        p3 = [ T/2, S]
+        p3 = [T/2, S]
 
         tripod_A = {'legi', 'legk', 'legm'}
         tripod_B = {'legj', 'legl', 'legn'}
@@ -103,14 +103,14 @@ class Simulator:
 if __name__ == '__main__':
     legs = [
         legs_IK.SpiderLeg("legi", 43.8, 88, 166),
-        # legs_IK.SpiderLeg("legj", 43.8, 88, 166),
-        # legs_IK.SpiderLeg("legk", 43.8, 88, 166),
-        # legs_IK.SpiderLeg("legl", 43.8, 88, 166),
-        # legs_IK.SpiderLeg("legm", 43.8, 88, 166),
-        # legs_IK.SpiderLeg("legn", 43.8, 88, 166)
+        legs_IK.SpiderLeg("legj", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legk", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legl", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legm", 43.8, 88, 166),
+        legs_IK.SpiderLeg("legn", 43.8, 88, 166)
     ]
     for leg in legs:
         leg.set_angles([90, 30, 120])
 
     sim = Simulator(legs)
-    sim.movement(legs, 20)
+    sim.movement(legs)

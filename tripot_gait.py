@@ -1,6 +1,10 @@
 from math import *
 import time
-
+try:
+    import servo_control
+    is_simulate = False
+except:
+    is_simulate = True
 class Tripot_gait:
     def __init__(self, beta_ang = pi/4):
         self.legs_ROT_dict = {
@@ -11,16 +15,18 @@ class Tripot_gait:
             'legk' : self.rotation_matrix(pi/2 + beta_ang),
             'legn' : self.rotation_matrix(-beta_ang)
         }
+        a = pi if not is_simulate else 0
+        b = 1 if not is_simulate else -1
         self.anti_beta_dict = {
-            'legi' : 0,
-            'legl' : -pi,
-            'legj' : -beta_ang,
-            'legm' : -(pi + beta_ang),
-            'legk' : -(pi/2 + beta_ang),
-            'legn' : -(-beta_ang)
+            'legi' : a,
+            'legl' : a + pi*b,
+            'legj' : a + beta_ang*b,
+            'legm' : a + (pi + beta_ang)*b,
+            'legk' : a + (pi/2 + beta_ang)*b,
+            'legn' : a + (-beta_ang)*b
         }
 
-    def bezier_curve(self, p1, p2, p3, i, duration = 0.5 ,steps=100):
+    def bezier_curve(self, p1, p2, p3, i, steps, duration = 0.1):
         t = i / steps
         te = 0.5 * (1 - cos(pi * t))  # easing
 
@@ -45,8 +51,8 @@ class Tripot_gait:
         p2_up = [0, S + 2*A]
         p2_down = [0, S]
 
-        y_up, z_up = self.bezier_curve(p1, p2_up, p3, t, steps=num_of_steps)
-        y_down, z_down = self.bezier_curve(p1, p2_down, p3, t, steps=num_of_steps)
+        y_up, z_up = self.bezier_curve(p1, p2_up, p3, t, num_of_steps)
+        y_down, z_down = self.bezier_curve(p1, p2_down, p3, t, num_of_steps)
 
         for leg in legs:
             R_leg = self.rotation_matrix(self.anti_beta_dict[leg.name])
@@ -75,9 +81,9 @@ class Tripot_gait:
             targets[leg.name] = target_rot
         return targets
     
-    def movement(self, legs, angle = 0, T = 140, S = -100, A = 20, step = 100, xpos = 150):
-        p1 = [T/2, S]
-        p3 = [-T/2, S]
+    def movement(self, legs, angle = 0, T = 120, S = -100, A = 20, step = 50, xpos = 150):
+        p1 = [-T/2, S]
+        p3 = [T/2, S]
 
         tripod_A = {'legi', 'legk', 'legm'}
         tripod_B = {'legj', 'legl', 'legn'}
