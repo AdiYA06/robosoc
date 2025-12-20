@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import legs_IK
 import time
 import tripot_gait
@@ -73,89 +72,45 @@ class Simulator:
         self.ax.set_ylim(mid_y - max_range, mid_y + max_range)
         self.ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
-    def gait_phase(self, legs, swing_legs, p1, p3, S, A, num_of_steps, step, angle = 0):
-        for t in range(0, num_of_steps + 1, step):
-            self.ax.cla()
-            self.ax.set_xlim(-300, 300)
-            self.ax.set_ylim(-300, 300)
-            self.ax.set_zlim(-300, 300)
-
-            # swing & stance curves
-            p2_up = [0, S + 2*A]
-            p2_down = [0, S]
-
-            y_up, z_up = self.tripot.bezier_curve(p1, p2_up, p3, t, steps=num_of_steps)
-            y_down, z_down = self.tripot.bezier_curve(p1, p2_down, p3, t, steps=num_of_steps)
-
-            for leg in legs:
-                R = self.tripot.rotation_matrix(self.tripot.anti_beta_dict[leg.name])
-
-                if leg.name in swing_legs:
-                    y, z = y_up, z_up
-                    sign = +1
-                else:
-                    y, z = y_down, z_down
-                    sign = -1
-
-                target = [
-                    150 + sign * R[0][1] * y,
-                    0   + sign * R[1][1] * y,
-                    z   + sign * R[2][1] * y,
-                ]
-                R = self.tripot.rotation_matrix(-radians(angle))
-                target_rot = [
-                    R[0][0]*target[0] + R[0][1]*target[1] + R[0][2]*target[2],
-                    R[1][0]*target[0] + R[1][1]*target[1] + R[1][2]*target[2],
-                    R[2][0]*target[0] + R[2][1]*target[1] + R[2][2]*target[2],
-                ]
-                target = target_rot
-
-                leg.inverseKinematics(target)
-                self.plot_leg(leg, leg.forwardKinematics())
-
-            plt.draw()
-            plt.pause(0.001)
-
-    def moving(self, legs, step=1, angle = 0):
-        num_of_steps = 50
-        T = 100
-        S = -70
-        A = 20
-
+    def movement(self, legs, angle = 0, T = 140, S = -100, A = 20, step = 100, xpos = 150):
         p1 = [-T/2, S]
         p3 = [ T/2, S]
 
         tripod_A = {'legi', 'legk', 'legm'}
         tripod_B = {'legj', 'legl', 'legn'}
 
-        while True:
-            # Phase A
-            self.gait_phase(
-                legs, tripod_A,
-                p1, p3, S, A,
-                num_of_steps, step,
-                angle = angle
-            )
+        tripods = [tripod_A, tripod_B]
 
-            # Phase B (second half of cycle)
-            self.gait_phase(
-                legs, tripod_B,
-                p1, p3, S, A,
-                num_of_steps, step,
-                angle = angle
-            )
+        while True:
+            for swing_tripod in tripods:
+                for t in range(0, step + 1, 1):
+                    self.ax.cla()
+                    targets = self.tripot.calculate_gait_targets(
+                        legs, swing_tripod,
+                        p1, p3, S, A,
+                        step, t,
+                        angle,
+                        xpos
+                    )
+
+                    for leg in legs:
+                        leg.inverseKinematics(targets[leg.name])
+                        self.plot_leg(leg, leg.forwardKinematics())
+
+                    plt.draw()
+                    plt.pause(0.001)
 
 if __name__ == '__main__':
     legs = [
         legs_IK.SpiderLeg("legi", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legj", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legk", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legl", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legm", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legn", 43.8, 88, 166)
+        # legs_IK.SpiderLeg("legj", 43.8, 88, 166),
+        # legs_IK.SpiderLeg("legk", 43.8, 88, 166),
+        # legs_IK.SpiderLeg("legl", 43.8, 88, 166),
+        # legs_IK.SpiderLeg("legm", 43.8, 88, 166),
+        # legs_IK.SpiderLeg("legn", 43.8, 88, 166)
     ]
     for leg in legs:
         leg.set_angles([90, 30, 120])
 
     sim = Simulator(legs)
-    sim.moving(legs, angle=20)
+    sim.movement(legs, 20)
