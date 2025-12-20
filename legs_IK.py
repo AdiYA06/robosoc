@@ -37,7 +37,7 @@ class SpiderLeg:
         value = self.clamp(value)
         return acos(value)
     
-    def set_angles(self, angles):
+    def set_angles(self, angles, easing = 0):
         """
             Set the joint angles of the leg and move the servos accordingly.
             Args:
@@ -55,8 +55,10 @@ class SpiderLeg:
         _angles = self.normalize_angles(angles)
         self.theta1, self.theta2, self.theta3 = _angles
         if not is_simulate:
-            # self.control.turn_angles_eased(_angles, pre_angles)
-            self.control.turn_angles(_angles)
+            if easing:
+                self.control.turn_angles_eased(_angles, pre_angles)
+            else:
+                self.control.turn_angles(_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -82,7 +84,7 @@ class SpiderLeg:
     def get_target(self):
         return self.joints[3]
 
-    def inverseKinematics(self, target = None):
+    def inverseKinematics(self, target = None, easing = 0):
         """
             Calculate the joint angles required to reach a target position, and set_angle.
             Args:
@@ -123,7 +125,7 @@ class SpiderLeg:
         theta3 = phi1 + phi2
         ang = [degrees(theta1), degrees(theta2), degrees(theta3)]
         ang1 = ang.copy()
-        self.set_angles(ang)
+        self.set_angles(ang, easing)
         self.forwardKinematics()
         return ang1
         

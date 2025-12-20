@@ -6,7 +6,7 @@ try:
 except:
     is_simulate = True
 class Tripot_gait:
-    def __init__(self, beta_ang = pi/4, PIN = None):
+    def __init__(self, beta_ang = pi/4):
         self.legs_ROT_dict = {
             'legi' : self.rotation_matrix(0),
             'legl' : self.rotation_matrix(pi),
@@ -42,7 +42,7 @@ class Tripot_gait:
             [0,         0,          1]
         ]
         return ROT
-    
+
     def calculate_gait_targets(self, legs, swing_legs, p1, p3, S, A, num_of_steps, t, angle, x_pos):
         """Calculate IK targets for all legs at time step t."""
         targets = {}
@@ -104,13 +104,14 @@ class Tripot_gait:
                     for leg in legs:
                         leg.inverseKinematics(targets[leg.name])
 
-    def turning(self, legs, angle = 70, S = -100, A = 50, step = 10, xpos = 150):
+    def turning(self, legs, angle = 40, S = -100, A = 50, xpos = 150):
         tripod_A = {'legi', 'legk', 'legm'}
         tripod_B = {'legj', 'legl', 'legn'}
 
         tripods = [tripod_A, tripod_B]
-        for leg in tripod_A:
-            leg.inverseKinematics([xpos, 0, S + A])
+        for leg in legs:
+            if leg.name in tripod_A:
+                leg.inverseKinematics([xpos, 0, S + A], easing = 1)
         
         while True:
             for swing_legs in tripods:
@@ -118,14 +119,15 @@ class Tripot_gait:
                     if leg.name in swing_legs:
                         pass
                     else:
-                        leg.inverseKinematics([xpos, 0, S])
+                        leg.inverseKinematics([xpos, 0, S], easing = 1)
                         cur_angle = leg.get_angles()
-                        cur_angle[0] += angle
-                        leg.set_angles(cur_angle)
+                        cur_angle[0] += angle - 90
+                        cur_angle[1] -= 90
+                        leg.set_angles(cur_angle, easing = 1)
 
                 for leg in legs:
                     if leg.name in swing_legs:
-                        leg.inverseKinematics([xpos, 0, S])
+                        leg.inverseKinematics([xpos, 0, S], easing = 1)
                     else:
                         pass
                 
@@ -133,7 +135,7 @@ class Tripot_gait:
                     if leg.name in swing_legs:
                         pass
                     else:
-                        leg.inverseKinematics([xpos, 0, S + A])
+                        leg.inverseKinematics([xpos, 0, S + A], easing = 1)
             
 if __name__ == '__main__':
     import legs_IK
