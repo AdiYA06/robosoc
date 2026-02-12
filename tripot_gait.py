@@ -143,8 +143,8 @@ if __name__ == '__main__':
         # legs_IK.SpiderLeg("legi", 43.8, 88, 166, [0,1,2]),
         # legs_IK.SpiderLeg("legj", 43.8, 88, 166, [0,1,2]),
         # legs_IK.SpiderLeg("legk", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legl", 43.8, 88, 166),
+        # legs_IK.SpiderLeg("legl", 43.8, 88, 166, [0,1,2]),
         # legs_IK.SpiderLeg("legm", 43.8, 88, 166, [0,1,2]),
-        legs_IK.SpiderLeg("legn", 43.8, 88, 166, [0,1,2])
+        # legs_IK.SpiderLeg("legn", 43.8, 88, 166, [0,1,2])
     ]
     Tripot_gait().turning(legs)

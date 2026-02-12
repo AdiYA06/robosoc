@@ -38,7 +38,7 @@ class servo_movement:
         """
         return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
 
-    def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=200):
+    def turn_angles_eased(self, target_angles, pre_angles, duration=0.2, steps=200):
         """
         Smoothly interpolate servos from pre_angles to target_angles using an ease-in-out sine curve.
         Parameters
