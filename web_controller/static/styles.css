@@ -1,0 +1,105 @@
+:root {
+  --bg: #121722;
+  --panel: #20293a;
+  --line: #34455f;
+  --text: #f4f8ff;
+  --accent: #62d4ff;
+  --warn: #ff5f57;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 20% 10%, #24314a, var(--bg) 55%);
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 28px;
+}
+
+h1, h2, p {
+  margin: 0;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+
+#connection {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.pad-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.panel {
+  background: color-mix(in oklab, var(--panel), black 8%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.pad {
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  margin: 10px auto;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 50% 45%, #2d3d58, #1a2434 68%);
+  touch-action: none;
+}
+
+.knob {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 18px #66deff88;
+}
+
+.readout {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.9;
+}
+
+.controls {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.controls label {
+  display: grid;
+  gap: 4px;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+@media (max-width: 740px) {
+  .pad-grid {
+    grid-template-columns: 1fr;
+  }
+}
