@@ -11,3 +11,5 @@ const API_TOKEN = '97af9d5e3b1287eb4b1f1266820f9dbaaf49f57c137e9c30ac339952217e4
 
 // Optional CORS origin if you serve frontend from another domain.
 const ALLOW_ORIGIN = '';
+
+const DEBUG_ERRORS = true;

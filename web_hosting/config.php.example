@@ -8,6 +8,7 @@ const DB_PASS = 'REPLACE_WITH_REAL_DB_PASSWORD';
 
 // Generate a long random token for API access.
 const API_TOKEN = 'REPLACE_WITH_LONG_RANDOM_TOKEN';
+const DEBUG_ERRORS = false;
 
 // Optional CORS origin if you serve frontend from another domain.
 const ALLOW_ORIGIN = '';
