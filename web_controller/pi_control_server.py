@@ -11,6 +11,9 @@ No third-party dependencies required.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
+import hmac
 import json
 import os
 import threading
@@ -211,8 +214,34 @@ class SerialTransport(LineTransport):
                 pass
 
 
-def build_handler(shared: SharedState):
+def build_handler(shared: SharedState, auth_user: str | None, auth_pass: str | None):
     class Handler(BaseHTTPRequestHandler):
+        def _is_authorized(self) -> bool:
+            if auth_user is None or auth_pass is None:
+                return True
+            header = self.headers.get("Authorization", "")
+            if not header.startswith("Basic "):
+                return False
+            encoded = header.split(" ", 1)[1].strip()
+            try:
+                decoded = base64.b64decode(encoded).decode("utf-8")
+            except (binascii.Error, UnicodeDecodeError):
+                return False
+            user, sep, password = decoded.partition(":")
+            if not sep:
+                return False
+            return hmac.compare_digest(user, auth_user) and hmac.compare_digest(password, auth_pass)
+
+        def _request_auth(self) -> None:
+            body = b"Authentication required"
+            self.send_response(HTTPStatus.UNAUTHORIZED)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("WWW-Authenticate", 'Basic realm="Hexapod Controller"')
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
         def _set_json(self, status: int = 200) -> None:
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
@@ -227,6 +256,10 @@ def build_handler(shared: SharedState):
             self.end_headers()
 
         def do_GET(self) -> None:
+            if not self._is_authorized():
+                self._request_auth()
+                return
+
             if self.path == "/api/state":
                 state = asdict(shared.get())
                 body = json.dumps({"state": state, "lock": shared.lock_status()}).encode("utf-8")
@@ -254,6 +287,10 @@ def build_handler(shared: SharedState):
             self.wfile.write(content)
 
         def do_POST(self) -> None:
+            if not self._is_authorized():
+                self._request_auth()
+                return
+
             if self.path not in {"/api/control", "/api/takeover"}:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
@@ -319,7 +356,19 @@ def main() -> None:
     parser.add_argument("--serial-port", default=os.getenv("SERIAL_PORT", ""))
     parser.add_argument("--baud", type=int, default=int(os.getenv("SERIAL_BAUD", "115200")))
     parser.add_argument("--serial-required", action="store_true")
+    parser.add_argument("--internet", action="store_true", help="Enable internet-ready mode (requires auth)")
+    parser.add_argument("--auth-user", default=os.getenv("HEXAPOD_AUTH_USER", ""))
+    parser.add_argument("--auth-pass", default=os.getenv("HEXAPOD_AUTH_PASS", ""))
     args = parser.parse_args()
+
+    auth_user: str | None = None
+    auth_pass: str | None = None
+    auth_requested = args.internet or args.auth_user or args.auth_pass
+    if auth_requested:
+        if not args.auth_user or not args.auth_pass:
+            parser.error("--internet requires both --auth-user and --auth-pass (or HEXAPOD_AUTH_USER / HEXAPOD_AUTH_PASS)")
+        auth_user = args.auth_user
+        auth_pass = args.auth_pass
 
     shared = SharedState()
     if args.serial_port:
@@ -333,7 +382,11 @@ def main() -> None:
     thread = threading.Thread(target=control_loop, args=(shared, controller), daemon=True)
     thread.start()
 
-    server = ThreadingHTTPServer((args.host, args.port), build_handler(shared))
+    server = ThreadingHTTPServer((args.host, args.port), build_handler(shared, auth_user, auth_pass))
+    if auth_user is None:
+        print("Auth: disabled (LAN only).")
+    else:
+        print("Auth: enabled (HTTP Basic).")
     print(f"Web controller available at http://<pi-ip>:{args.port}")
     print("Press Ctrl+C to stop")
     try:

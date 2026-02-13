@@ -1,0 +1,126 @@
+:root {
+  --bg: #101624;
+  --panel: #1e283d;
+  --line: #364868;
+  --text: #f2f7ff;
+  --accent: #79e2ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 25% 12%, #263451, var(--bg) 55%);
+}
+
+.app {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 20px 16px 30px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+h1, h2, p {
+  margin: 0;
+}
+
+.panel {
+  background: color-mix(in oklab, var(--panel), black 8%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.auth-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.auth-panel label {
+  display: grid;
+  gap: 6px;
+}
+
+.pad-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.pad {
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  margin: 10px auto;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle at 50% 45%, #2d3e5a, #192334 68%);
+  touch-action: none;
+}
+
+.knob {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 18px #66deff88;
+}
+
+.readout {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.9;
+}
+
+.controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+}
+
+input[type='password'],
+button,
+input[type='range'] {
+  width: 100%;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #2a384f;
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+@media (max-width: 760px) {
+  .pad-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-panel {
+    grid-template-columns: 1fr;
+  }
+}

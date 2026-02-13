@@ -1,0 +1,13 @@
+<?php
+// Copy this file to config.php and fill in real credentials.
+
+const DB_HOST = 'dbhost.cs.man.ac.uk';
+const DB_NAME = 'c59506kl';
+const DB_USER = 'c59506kl';
+const DB_PASS = 'REPLACE_WITH_REAL_DB_PASSWORD';
+
+// Generate a long random token for API access.
+const API_TOKEN = 'REPLACE_WITH_LONG_RANDOM_TOKEN';
+
+// Optional CORS origin if you serve frontend from another domain.
+const ALLOW_ORIGIN = '';
