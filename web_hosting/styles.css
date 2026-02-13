@@ -144,10 +144,6 @@ button {
 }
 
 @media (max-width: 840px) {
-  .pad-grid {
-    grid-template-columns: 1fr;
-  }
-
   header {
     flex-direction: column;
   }
@@ -159,6 +155,24 @@ button {
 }
 
 @media (max-width: 620px) {
+  .pad-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 10px;
+  }
+
+  .pad {
+    width: min(100%, 44vw);
+    margin: 8px auto;
+  }
+
+  .readout {
+    font-size: 0.82rem;
+  }
+
   .auth-panel {
     grid-template-columns: 1fr;
   }
@@ -166,5 +180,11 @@ button {
   .app {
     padding-left: 12px;
     padding-right: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .pad {
+    width: min(100%, 42vw);
   }
 }
