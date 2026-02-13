@@ -24,7 +24,7 @@ try {
     $stmt = $pdo->prepare(
         'INSERT INTO hexapod_command (id, mode, vx, vy, turn_rate, speed, height, client_id)
          VALUES (1, :mode, 0, 0, 0, 0.4, 0, "")
-         ON DUPLICATE KEY UPDATE mode = :mode'
+         ON DUPLICATE KEY UPDATE mode = VALUES(mode)'
     );
     $stmt->execute([':mode' => 'stop']);
 } catch (Throwable $e) {
