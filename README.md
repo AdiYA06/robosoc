@@ -28,7 +28,7 @@ Open:
 ```bash
 python3 web_controller/pi_remote_client.py \
   --endpoint "https://web.cs.manchester.ac.uk/c59506kl/hexapod_robot/web_hosting/get_command.php" \
-  --token "YOUR_API_TOKEN" \
+  --token "97af9d5e3b1287eb4b1f1266820f9dbaaf49f57c137e9c30ac339952217e4582" \
   --serial-port /dev/ttyACM0 \
   --baud 115200 \
   --serial-required
