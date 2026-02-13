@@ -1,0 +1,16 @@
+:root { --bg:#111722; --panel:#1d2637; --line:#34455f; --text:#f2f6ff; --accent:#66d8ff; }
+* { box-sizing: border-box; }
+body { margin:0; min-height:100vh; font-family:"Avenir Next","Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 30% 10%, #273654, var(--bg) 58%); }
+.app { max-width:900px; margin:0 auto; padding:16px; }
+header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+.auth { display:grid; gap:8px; grid-template-columns: 1fr 1fr auto; margin-bottom:14px; }
+input, button { border:1px solid var(--line); border-radius:10px; padding:10px; background:#243049; color:var(--text); }
+button { cursor:pointer; }
+.pad-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; }
+.pad { width:min(100%,260px); aspect-ratio:1; margin:10px auto; border:1px solid var(--line); border-radius:50%; position:relative; touch-action:none; background:radial-gradient(circle at 50% 45%, #2f405d, #182334 65%); }
+.knob { width:40px; height:40px; border-radius:50%; background:var(--accent); position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); box-shadow:0 0 16px #67dcff88; }
+.readout { text-align:center; font-family:ui-monospace, Menlo, monospace; }
+.controls { margin-top:14px; display:grid; gap:10px; }
+.controls label { display:grid; gap:4px; }
+@media (max-width:740px) { .pad-grid { grid-template-columns:1fr; } .auth { grid-template-columns:1fr; } }

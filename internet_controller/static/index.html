@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexapod Internet Controller</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Hexapod Internet Control</h1>
+        <p id="status">Not connected</p>
+      </header>
+
+      <section class="auth">
+        <input id="owner" placeholder="Operator name" value="operator" />
+        <input id="token" type="password" placeholder="Shared token" />
+        <button id="connect">Connect & Claim</button>
+      </section>
+
+      <section class="pad-grid">
+        <div class="panel">
+          <h2>Walk (WASD)</h2>
+          <div class="pad" id="move-pad"><div class="knob" id="move-knob"></div></div>
+          <div class="readout" id="move-readout">vx 0.00 | vy 0.00</div>
+        </div>
+        <div class="panel">
+          <h2>Turn (J/K)</h2>
+          <div class="pad" id="turn-pad"><div class="knob" id="turn-knob"></div></div>
+          <div class="readout" id="turn-readout">turn 0.00</div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <label>Speed <input type="range" id="speed" min="0" max="1" step="0.01" value="0.4" /></label>
+        <label>Body Height <input type="range" id="height" min="-1" max="1" step="0.01" value="0" /></label>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
