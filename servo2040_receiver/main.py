@@ -178,7 +178,7 @@ def apply_failsafe():
         "vx": 0.0,
         "vy": 0.0,
         "turn": 0.0,
-        "speed": last_cmd.get("speed", 0.4),
+        "speed": last_cmd.get("speed", 1),
         "height": last_cmd.get("height", 0.0),
         "ts": 0.0,
     }
