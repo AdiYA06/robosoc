@@ -18,8 +18,8 @@ try {
             height FLOAT NOT NULL DEFAULT 0,
             client_id VARCHAR(128) NOT NULL DEFAULT "",
             lock_owner_id VARCHAR(128) NOT NULL DEFAULT "",
-            lock_seen_at TIMESTAMP NULL DEFAULT NULL,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            lock_seen_at TIMESTAMP(6) NULL DEFAULT NULL,
+            updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
@@ -31,9 +31,23 @@ try {
         }
     }
     try {
-        $pdo->exec('ALTER TABLE hexapod_command ADD COLUMN lock_seen_at TIMESTAMP NULL DEFAULT NULL');
+        $pdo->exec('ALTER TABLE hexapod_command ADD COLUMN lock_seen_at TIMESTAMP(6) NULL DEFAULT NULL');
     } catch (Throwable $e) {
         if (stripos($e->getMessage(), 'Duplicate column name') === false) {
+            throw $e;
+        }
+    }
+    try {
+        $pdo->exec('ALTER TABLE hexapod_command MODIFY lock_seen_at TIMESTAMP(6) NULL DEFAULT NULL');
+    } catch (Throwable $e) {
+        if (defined('DEBUG_ERRORS') && DEBUG_ERRORS === true) {
+            throw $e;
+        }
+    }
+    try {
+        $pdo->exec('ALTER TABLE hexapod_command MODIFY updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)');
+    } catch (Throwable $e) {
+        if (defined('DEBUG_ERRORS') && DEBUG_ERRORS === true) {
             throw $e;
         }
     }

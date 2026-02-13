@@ -15,7 +15,7 @@ import urllib.request
 from pi_control_server import ControlState, HexapodController, LineTransport, SerialTransport, StdoutTransport
 
 DEFAULT_POLL_HZ = 20.0
-DEFAULT_STALE_TIMEOUT_S = 0.7
+DEFAULT_STALE_TIMEOUT_S = 1.5
 
 
 def clamp(value: object, lo: float, hi: float, default: float) -> float:

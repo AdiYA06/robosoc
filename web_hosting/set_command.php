@@ -85,8 +85,8 @@ try {
              height = :height,
              client_id = :client_id,
              lock_owner_id = :lock_owner_id,
-             lock_seen_at = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP
+             lock_seen_at = CURRENT_TIMESTAMP(6),
+             updated_at = CURRENT_TIMESTAMP(6)
          WHERE id = 1'
     );
     $updateStmt->execute([

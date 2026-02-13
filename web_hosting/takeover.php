@@ -36,7 +36,7 @@ try {
     $takeStmt = $pdo->prepare(
         'UPDATE hexapod_command
          SET lock_owner_id = :client_id,
-             lock_seen_at = CURRENT_TIMESTAMP
+             lock_seen_at = CURRENT_TIMESTAMP(6)
          WHERE id = 1'
     );
     $takeStmt->execute([':client_id' => $clientId]);
