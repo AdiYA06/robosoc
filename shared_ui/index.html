@@ -2,16 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hexapod Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Hexapod Internet Controller</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <header>
-        <h1>Hexapod Controller</h1>
-        <p id="connection">Connecting...</p>
+        <div>
+          <h1>Hexapod Internet Controller</h1>
+          <p id="connection">Disconnected</p>
+        </div>
+        <div class="lock-box">
+          <p id="lock-status">Lock: unknown</p>
+          <button id="takeover" type="button">Take Control</button>
+        </div>
       </header>
+
+      <section class="panel auth-panel">
+        <label>
+          API Token
+          <input id="api-token" type="password" placeholder="Paste your API token" autocomplete="off" />
+        </label>
+        <button id="save-token" type="button">Use Token</button>
+      </section>
 
       <section class="pad-grid">
         <div class="panel">
@@ -31,18 +45,13 @@
         </div>
       </section>
 
-      <section class="controls">
-        <label>
-          Speed
-          <input type="range" id="speed" min="0" max="1" step="0.01" value="1" />
-        </label>
+      <section class="controls panel">
+        <p class="key-help">Keyboard: <strong>WASD</strong> walk, <strong>J/K</strong> turn</p>
         <label>
           Body Height
           <input type="range" id="height" min="-1" max="1" step="0.01" value="0" />
         </label>
-        <button id="takeover" type="button">Take Control</button>
       </section>
-
     </main>
 
     <script src="app.js"></script>

@@ -18,7 +18,7 @@ last_cmd = {
     "vx": 0.0,
     "vy": 0.0,
     "turn": 0.0,
-    "speed": 1,
+    "speed": 0.0,
     "height": 0.0,
     "ts": 0.0,
 }
@@ -35,6 +35,8 @@ class HexapodRobot:
         self.smoothed_vx = 0.0
         self.smoothed_vy = 0.0
         self.walk_vector_alpha = 0.18
+        self.step_min = 20
+        self.step_max = 40
         self.legs = [
             legs_IK.SpiderLeg("legi", 43.8, 88, 166, [0, 1, 2]),
             # legs_IK.SpiderLeg("legj", 43.8, 88, 166, [0,1,2]),
@@ -65,11 +67,13 @@ class HexapodRobot:
         vx = cmd.get("vx", 0.0)
         vy = cmd.get("vy", 0.0)
         turn = cmd.get("turn", 0.0)
-        speed = cmd.get("speed", 1)
+        speed = cmd.get("speed", 0.0)
         height = cmd.get("height", 0.0)
         stance_z = -125 + (height * 45)   # exact: -170 .. -80
         xpos = 130 + (stance_z + 125) * (20 / 45)  # ~0.4444
         xpos = max(110, min(150, xpos))
+        gait_step = int(round(self.step_max - (self.step_max - self.step_min) * speed))
+        gait_step = max(self.step_min, min(self.step_max, gait_step))
 
         if mode == "stop":
             if self.last_mode != "stop":
@@ -103,7 +107,7 @@ class HexapodRobot:
                 T=80 + int(70 * speed),
                 body_height=stance_z,
                 A=20 + int(20 * speed),
-                step=20,
+                step=gait_step,
                 xpos=xpos,
             )
             self.last_mode = "turn"
@@ -133,7 +137,7 @@ class HexapodRobot:
                 T=stride,
                 body_height=stance_z,
                 A=15 + int(20 * speed),
-                step=20,
+                step=gait_step,
                 xpos=xpos,
             )
             self.last_mode = "walk"
@@ -160,7 +164,7 @@ def sanitize(payload):
         "vx": clamp(payload.get("vx"), -1.0, 1.0, 0.0),
         "vy": clamp(payload.get("vy"), -1.0, 1.0, 0.0),
         "turn": clamp(payload.get("turn"), -1.0, 1.0, 0.0),
-        "speed": clamp(payload.get("speed"), 0.0, 1.0, 0.4),
+        "speed": clamp(payload.get("speed"), 0.0, 1.0, 0.0),
         "height": clamp(payload.get("height"), -1.0, 1.0, 0.0),
         "ts": clamp(payload.get("ts"), 0.0, 1e20, 0.0),
     }
@@ -178,7 +182,7 @@ def apply_failsafe():
         "vx": 0.0,
         "vy": 0.0,
         "turn": 0.0,
-        "speed": last_cmd.get("speed", 1),
+        "speed": last_cmd.get("speed", 0.0),
         "height": last_cmd.get("height", 0.0),
         "ts": 0.0,
     }

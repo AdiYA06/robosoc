@@ -3,7 +3,7 @@ const state = {
   vx: 0,
   vy: 0,
   turn: 0,
-  speed: 0.4,
+  speed: 0,
   height: 0,
 };
 
@@ -22,7 +22,6 @@ let apiToken = localStorage.getItem(TOKEN_KEY) || '';
 
 const connectionEl = document.getElementById('connection');
 const lockEl = document.getElementById('lock-status');
-const speedEl = document.getElementById('speed');
 const heightEl = document.getElementById('height');
 const moveReadout = document.getElementById('move-readout');
 const turnReadout = document.getElementById('turn-readout');
@@ -56,12 +55,15 @@ saveTokenBtn.addEventListener('click', () => {
   connectionEl.textContent = 'Token saved';
 });
 
-speedEl.addEventListener('input', () => {
-  state.speed = Number(speedEl.value);
-});
 heightEl.addEventListener('input', () => {
   state.height = Number(heightEl.value);
 });
+
+function computeDynamicSpeed() {
+  const moveMag = Math.min(1, Math.hypot(state.vx, state.vy));
+  const turnMag = Math.min(1, Math.abs(state.turn));
+  return Number(Math.max(moveMag, turnMag).toFixed(3));
+}
 
 function makePad(padId, knobId, onChange, options = {}) {
   const pad = document.getElementById(padId);
@@ -219,6 +221,7 @@ takeoverBtn.addEventListener('click', takeControl);
 
 async function sendState() {
   state.mode = resolveMode();
+  state.speed = computeDynamicSpeed();
   if (!apiToken) {
     connectionEl.textContent = 'Enter token to control';
     return;

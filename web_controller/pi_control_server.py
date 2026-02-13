@@ -30,6 +30,7 @@ CONTROL_HZ = 25.0
 COMMAND_TIMEOUT_S = 0.7
 LOCK_TIMEOUT_S = 2.0
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+SHARED_UI_DIR = Path(__file__).resolve().parents[1] / "shared_ui"
 
 
 @dataclass
@@ -267,10 +268,17 @@ def build_handler(shared: SharedState, auth_user: str | None, auth_pass: str | N
                 self.wfile.write(body)
                 return
 
-            rel_path = "index.html" if self.path == "/" else self.path.lstrip("/")
-            file_path = (STATIC_DIR / rel_path).resolve()
+            if self.path == "/":
+                file_path = (SHARED_UI_DIR / "index.html").resolve()
+            elif self.path == "/styles.css":
+                file_path = (SHARED_UI_DIR / "styles.css").resolve()
+            else:
+                rel_path = self.path.lstrip("/")
+                file_path = (STATIC_DIR / rel_path).resolve()
 
-            if not str(file_path).startswith(str(STATIC_DIR)) or not file_path.exists():
+            in_static = str(file_path).startswith(str(STATIC_DIR))
+            in_shared = str(file_path).startswith(str(SHARED_UI_DIR))
+            if (not in_static and not in_shared) or not file_path.exists():
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
 

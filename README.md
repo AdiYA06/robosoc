@@ -1,5 +1,9 @@
 # Hexapod Web Control Quick Start
 
+Shared UI source (used by both internet and LAN modes):
+- `shared_ui/index.html`
+- `shared_ui/styles.css`
+
 ## 1. Detect Servo Board Serial Port
 
 ### macOS
