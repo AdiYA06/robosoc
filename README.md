@@ -18,7 +18,7 @@ Use the detected device path in the commands below.
 
 ### Health / DB init check
 Open:
-[init_db.php](https://web.cs.manchester.ac.uk/c59506kl/hexapod_robot/web_hosting/init_db.php?api_token=YOUR_API_TOKEN)
+[init_db.php](https://web.cs.manchester.ac.uk/c59506kl/hexapod_robot/web_hosting/init_db.php?api_token=97af9d5e3b1287eb4b1f1266820f9dbaaf49f57c137e9c30ac339952217e4582)
 
 ### Controller URL
 Open:

@@ -255,7 +255,7 @@ async function sendState() {
   }
 }
 
-setInterval(sendState, 50);
+setInterval(sendState, 30);
 window.addEventListener('beforeunload', () => {
   if (!apiToken) return;
   navigator.sendBeacon(
