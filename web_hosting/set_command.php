@@ -84,7 +84,7 @@ try {
              speed = :speed,
              height = :height,
              client_id = :client_id,
-             lock_owner_id = :client_id,
+             lock_owner_id = :lock_owner_id,
              lock_seen_at = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = 1'
@@ -97,6 +97,7 @@ try {
         ':speed' => $speed,
         ':height' => $height,
         ':client_id' => $clientId,
+        ':lock_owner_id' => $clientId,
     ]);
 
     $pdo->commit();
