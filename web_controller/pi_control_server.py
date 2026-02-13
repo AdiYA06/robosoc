@@ -25,6 +25,7 @@ HOST = "0.0.0.0"
 PORT = 8080
 CONTROL_HZ = 25.0
 COMMAND_TIMEOUT_S = 0.7
+LOCK_TIMEOUT_S = 2.0
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
@@ -43,6 +44,8 @@ class SharedState:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._state = ControlState(updated_at=time.time())
+        self._owner_id = ""
+        self._owner_seen_at = 0.0
 
     def update(self, patch: dict[str, Any]) -> ControlState:
         with self._lock:
@@ -55,6 +58,57 @@ class SharedState:
     def get(self) -> ControlState:
         with self._lock:
             return ControlState(**asdict(self._state))
+
+    def lock_status(self) -> dict[str, Any]:
+        with self._lock:
+            active = bool(self._owner_id) and (time.time() - self._owner_seen_at) <= LOCK_TIMEOUT_S
+            return {
+                "active": active,
+                "owner_id": self._owner_id if active else "",
+                "timeout_s": LOCK_TIMEOUT_S,
+            }
+
+    def update_from_client(self, client_id: str, patch: dict[str, Any]) -> tuple[bool, ControlState, dict[str, Any]]:
+        now = time.time()
+        with self._lock:
+            lease_expired = (now - self._owner_seen_at) > LOCK_TIMEOUT_S
+            if not self._owner_id or lease_expired:
+                self._owner_id = client_id
+                self._owner_seen_at = now
+            elif client_id != self._owner_id:
+                status = {
+                    "active": True,
+                    "owner_id": self._owner_id,
+                    "timeout_s": LOCK_TIMEOUT_S,
+                }
+                return False, ControlState(**asdict(self._state)), status
+            else:
+                self._owner_seen_at = now
+
+            for key, value in patch.items():
+                if hasattr(self._state, key):
+                    setattr(self._state, key, value)
+            self._state.updated_at = now
+            status = {
+                "active": True,
+                "owner_id": self._owner_id,
+                "timeout_s": LOCK_TIMEOUT_S,
+            }
+            return True, ControlState(**asdict(self._state)), status
+
+    def force_takeover(self, client_id: str) -> dict[str, Any]:
+        now = time.time()
+        with self._lock:
+            self._owner_id = client_id
+            self._owner_seen_at = now
+            return {
+                "ok": True,
+                "lock": {
+                    "active": True,
+                    "owner_id": self._owner_id,
+                    "timeout_s": LOCK_TIMEOUT_S,
+                },
+            }
 
 
 def clamp(value: Any, lo: float, hi: float, default: float) -> float:
@@ -175,7 +229,7 @@ def build_handler(shared: SharedState):
         def do_GET(self) -> None:
             if self.path == "/api/state":
                 state = asdict(shared.get())
-                body = json.dumps(state).encode("utf-8")
+                body = json.dumps({"state": state, "lock": shared.lock_status()}).encode("utf-8")
                 self._set_bytes(200, "application/json", len(body))
                 self.wfile.write(body)
                 return
@@ -200,7 +254,7 @@ def build_handler(shared: SharedState):
             self.wfile.write(content)
 
         def do_POST(self) -> None:
-            if self.path != "/api/control":
+            if self.path not in {"/api/control", "/api/takeover"}:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
 
@@ -211,6 +265,17 @@ def build_handler(shared: SharedState):
                 self._set_json(400)
                 self.wfile.write(b'{"ok":false,"error":"invalid_json"}')
                 return
+            client_id = str(payload.get("client_id", "")).strip()
+            if not client_id:
+                self._set_json(400)
+                self.wfile.write(b'{"ok":false,"error":"missing_client_id"}')
+                return
+
+            if self.path == "/api/takeover":
+                body = json.dumps(shared.force_takeover(client_id)).encode("utf-8")
+                self._set_bytes(200, "application/json", len(body))
+                self.wfile.write(body)
+                return
 
             sanitized = {
                 "mode": str(payload.get("mode", "stop")),
@@ -220,9 +285,11 @@ def build_handler(shared: SharedState):
                 "speed": clamp(payload.get("speed"), 0.0, 1.0, 0.4),
                 "height": clamp(payload.get("height"), -1.0, 1.0, 0.0),
             }
-            state = asdict(shared.update(sanitized))
-            body = json.dumps({"ok": True, "state": state}).encode("utf-8")
-            self._set_bytes(200, "application/json", len(body))
+            ok, state_obj, lock = shared.update_from_client(client_id, sanitized)
+            state = asdict(state_obj)
+            status_code = 200 if ok else 409
+            body = json.dumps({"ok": ok, "state": state, "lock": lock}).encode("utf-8")
+            self._set_bytes(status_code, "application/json", len(body))
             self.wfile.write(body)
 
         def log_message(self, format: str, *args: Any) -> None:

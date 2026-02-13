@@ -6,6 +6,12 @@ const state = {
   speed: 0.4,
   height: 0,
 };
+const CLIENT_KEY = "hexapod_controller_client_id_v1";
+let clientId = localStorage.getItem(CLIENT_KEY);
+if (!clientId) {
+  clientId = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : `client-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  localStorage.setItem(CLIENT_KEY, clientId);
+}
 
 const connectionEl = document.getElementById("connection");
 const speedEl = document.getElementById("speed");
@@ -14,6 +20,7 @@ const moveReadout = document.getElementById("move-readout");
 const turnReadout = document.getElementById("turn-readout");
 const moveKnob = document.getElementById("move-knob");
 const turnKnob = document.getElementById("turn-knob");
+const takeoverBtn = document.getElementById("takeover");
 
 speedEl.addEventListener("input", () => {
   state.speed = Number(speedEl.value);
@@ -124,16 +131,38 @@ window.addEventListener("keyup", (e) => {
   applyKeyboardState();
 });
 
+takeoverBtn.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/takeover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId }),
+    });
+    const payload = await res.json();
+    if (!res.ok || payload.ok === false) throw new Error("takeover_failed");
+    connectionEl.textContent = "Control taken (this device)";
+  } catch {
+    connectionEl.textContent = "Take control failed";
+  }
+});
+
 async function sendState() {
   state.mode = resolveMode();
   try {
     const res = await fetch("/api/control", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state),
+      body: JSON.stringify({ ...state, client_id: clientId }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    connectionEl.textContent = `Connected - mode: ${state.mode}`;
+    const payload = await res.json();
+    if (!res.ok || payload.ok === false) {
+      if (res.status === 409 && payload.lock && payload.lock.owner_id) {
+        connectionEl.textContent = `Locked by another device`;
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+    connectionEl.textContent = `Connected - mode: ${state.mode} (you control)`;
   } catch {
     connectionEl.textContent = "Disconnected - retrying...";
   }
@@ -143,6 +172,6 @@ setInterval(sendState, 40);
 window.addEventListener("beforeunload", () => {
   navigator.sendBeacon(
     "/api/control",
-    JSON.stringify({ mode: "stop", vx: 0, vy: 0, turn: 0, speed: state.speed, height: state.height })
+    JSON.stringify({ mode: "stop", vx: 0, vy: 0, turn: 0, speed: state.speed, height: state.height, client_id: clientId })
   );
 });

@@ -94,6 +94,20 @@ header {
   gap: 4px;
 }
 
+#takeover {
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #2a374f;
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+#takeover:active {
+  border-color: var(--accent);
+}
+
 input[type="range"] {
   width: 100%;
 }
