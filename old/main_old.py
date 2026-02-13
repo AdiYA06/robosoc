@@ -1,7 +1,6 @@
 from machine import Pin, PWM
 import time
 import legs_IK
-import servo_control
 import tripot_gait
 
 class main:

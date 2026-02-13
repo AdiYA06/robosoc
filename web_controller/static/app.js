@@ -139,7 +139,7 @@ async function sendState() {
   }
 }
 
-setInterval(sendState, 100);
+setInterval(sendState, 40);
 window.addEventListener("beforeunload", () => {
   navigator.sendBeacon(
     "/api/control",

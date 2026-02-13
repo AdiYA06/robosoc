@@ -10,7 +10,9 @@ No third-party dependencies required.
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import threading
 import time
 from dataclasses import dataclass, asdict
@@ -66,11 +68,22 @@ def clamp(value: Any, lo: float, hi: float, default: float) -> float:
 class HexapodController:
     """Hook this class into your servo/gait code."""
 
-    def __init__(self) -> None:
+    def __init__(self, transport: "LineTransport") -> None:
+        self.transport = transport
         self._last_print = 0.0
 
     def apply(self, state: ControlState) -> None:
-        # Replace this block with real calls into your movement stack.
+        packet = {
+            "mode": state.mode,
+            "vx": state.vx,
+            "vy": state.vy,
+            "turn": state.turn,
+            "speed": state.speed,
+            "height": state.height,
+            "ts": time.time(),
+        }
+        self.transport.send_line(json.dumps(packet))
+
         now = time.time()
         if now - self._last_print >= 0.15:
             self._last_print = now
@@ -85,6 +98,63 @@ class HexapodController:
                     height=state.height,
                 )
             )
+
+
+class LineTransport:
+    def send_line(self, text: str) -> None:
+        raise NotImplementedError
+
+    def close(self) -> None:
+        return
+
+
+class StdoutTransport(LineTransport):
+    def send_line(self, text: str) -> None:
+        return
+
+
+class SerialTransport(LineTransport):
+    def __init__(self, port: str, baudrate: int, required: bool) -> None:
+        self.port = port
+        self.baudrate = baudrate
+        self.required = required
+        self._serial = None
+        self._connect()
+
+    def _connect(self) -> None:
+        try:
+            import serial  # type: ignore
+        except Exception as exc:
+            if self.required:
+                raise RuntimeError("pyserial is required for serial transport") from exc
+            print("Serial disabled: install pyserial to enable USB forwarding.")
+            return
+
+        try:
+            self._serial = serial.Serial(self.port, self.baudrate, timeout=0.01)
+            print(f"Serial transport connected: {self.port} @ {self.baudrate}")
+        except Exception as exc:
+            if self.required:
+                raise RuntimeError(f"Failed to open serial port {self.port}") from exc
+            print(f"Serial transport not available on {self.port}: {exc}")
+            self._serial = None
+
+    def send_line(self, text: str) -> None:
+        if self._serial is None:
+            return
+        try:
+            self._serial.write((text + "\n").encode("utf-8"))
+        except Exception:
+            self._serial = None
+            if self.required:
+                raise
+
+    def close(self) -> None:
+        if self._serial is not None:
+            try:
+                self._serial.close()
+            except Exception:
+                pass
 
 
 def build_handler(shared: SharedState):
@@ -176,20 +246,35 @@ def control_loop(shared: SharedState, controller: HexapodController) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Hexapod web controller + serial forwarder")
+    parser.add_argument("--host", default=HOST)
+    parser.add_argument("--port", type=int, default=PORT)
+    parser.add_argument("--serial-port", default=os.getenv("SERIAL_PORT", ""))
+    parser.add_argument("--baud", type=int, default=int(os.getenv("SERIAL_BAUD", "115200")))
+    parser.add_argument("--serial-required", action="store_true")
+    args = parser.parse_args()
+
     shared = SharedState()
-    controller = HexapodController()
+    if args.serial_port:
+        transport: LineTransport = SerialTransport(args.serial_port, args.baud, args.serial_required)
+    else:
+        print("Serial forwarding disabled (no --serial-port).")
+        transport = StdoutTransport()
+
+    controller = HexapodController(transport)
 
     thread = threading.Thread(target=control_loop, args=(shared, controller), daemon=True)
     thread.start()
 
-    server = ThreadingHTTPServer((HOST, PORT), build_handler(shared))
-    print(f"Web controller available at http://<pi-ip>:{PORT}")
+    server = ThreadingHTTPServer((args.host, args.port), build_handler(shared))
+    print(f"Web controller available at http://<pi-ip>:{args.port}")
     print("Press Ctrl+C to stop")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        transport.close()
         server.server_close()
 
 
