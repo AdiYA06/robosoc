@@ -1,6 +1,6 @@
 from machine import Pin, PWM
 import time
-import math
+from math import *
 
 class servo_movement:
     def __init__(self, pin_list):
@@ -38,7 +38,7 @@ class servo_movement:
         """
         return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
 
-    def turn_angles_eased(self, target_angles, pre_angles, duration=0.5, steps=200):
+    def turn_angles_eased(self, target_angles, pre_angles, duration=0.2, steps=200):
         """
         Smoothly interpolate servos from pre_angles to target_angles using an ease-in-out sine curve.
         Parameters
@@ -66,7 +66,7 @@ class servo_movement:
         for i in range(steps + 1):
             t = i / steps
             # e = self.ease_in_out_quad(t) # basic ease motion curve.
-            e = -(math.cos(math.pi * t) - 1) / 2 # sine motion curve.
+            e = -(cos(pi * t) - 1) / 2 # sine motion curve.
 
             new_angles = []
             for sa, ta in zip(start_angles, target_angles):
