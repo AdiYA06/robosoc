@@ -4,6 +4,7 @@
   --line: #364868;
   --text: #f2f7ff;
   --accent: #79e2ff;
+  --warn: #ff8578;
 }
 
 * {
@@ -19,20 +20,41 @@ body {
 }
 
 .app {
-  max-width: 920px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 20px 16px 30px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
 }
 
 header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  gap: 14px;
+  align-items: flex-start;
   margin-bottom: 14px;
 }
 
 h1, h2, p {
   margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.15rem, 3.8vw, 1.75rem);
+}
+
+#connection {
+  margin-top: 4px;
+  opacity: 0.92;
+}
+
+.lock-box {
+  min-width: 180px;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+#lock-status {
+  font-weight: 600;
 }
 
 .panel {
@@ -62,7 +84,7 @@ h1, h2, p {
 }
 
 .pad {
-  width: min(100%, 280px);
+  width: min(100%, clamp(220px, 40vw, 320px));
   aspect-ratio: 1;
   margin: 10px auto;
   border: 1px solid var(--line);
@@ -73,32 +95,32 @@ h1, h2, p {
 }
 
 .knob {
-  width: 42px;
-  height: 42px;
+  width: clamp(42px, 11vw, 56px);
+  height: clamp(42px, 11vw, 56px);
   border-radius: 50%;
   background: var(--accent);
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 18px #66deff88;
+  box-shadow: 0 0 20px #66deff88;
 }
 
 .readout {
   text-align: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .controls {
   margin-top: 14px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 label {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 input[type='password'],
@@ -109,18 +131,40 @@ input[type='range'] {
 
 button {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
   background: #2a384f;
   color: var(--text);
-  padding: 10px 12px;
+  padding: 12px 14px;
+  min-height: 44px;
+  font-size: 0.98rem;
 }
 
-@media (max-width: 760px) {
+#takeover {
+  border-color: color-mix(in oklab, var(--warn), var(--line) 50%);
+}
+
+@media (max-width: 840px) {
   .pad-grid {
     grid-template-columns: 1fr;
   }
 
+  header {
+    flex-direction: column;
+  }
+
+  .lock-box {
+    width: 100%;
+    justify-items: stretch;
+  }
+}
+
+@media (max-width: 620px) {
   .auth-panel {
     grid-template-columns: 1fr;
+  }
+
+  .app {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }

@@ -17,13 +17,30 @@ try {
             speed FLOAT NOT NULL DEFAULT 0.4,
             height FLOAT NOT NULL DEFAULT 0,
             client_id VARCHAR(128) NOT NULL DEFAULT "",
+            lock_owner_id VARCHAR(128) NOT NULL DEFAULT "",
+            lock_seen_at TIMESTAMP NULL DEFAULT NULL,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
+    try {
+        $pdo->exec('ALTER TABLE hexapod_command ADD COLUMN lock_owner_id VARCHAR(128) NOT NULL DEFAULT ""');
+    } catch (Throwable $e) {
+        if (stripos($e->getMessage(), 'Duplicate column name') === false) {
+            throw $e;
+        }
+    }
+    try {
+        $pdo->exec('ALTER TABLE hexapod_command ADD COLUMN lock_seen_at TIMESTAMP NULL DEFAULT NULL');
+    } catch (Throwable $e) {
+        if (stripos($e->getMessage(), 'Duplicate column name') === false) {
+            throw $e;
+        }
+    }
+
     $stmt = $pdo->prepare(
-        'INSERT INTO hexapod_command (id, mode, vx, vy, turn_rate, speed, height, client_id)
-         VALUES (1, :mode, 0, 0, 0, 0.4, 0, "")
+        'INSERT INTO hexapod_command (id, mode, vx, vy, turn_rate, speed, height, client_id, lock_owner_id, lock_seen_at)
+         VALUES (1, :mode, 0, 0, 0, 0.4, 0, "", "", NULL)
          ON DUPLICATE KEY UPDATE mode = VALUES(mode)'
     );
     $stmt->execute([':mode' => 'stop']);

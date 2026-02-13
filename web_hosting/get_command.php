@@ -11,7 +11,9 @@ require_api_token();
 
 $pdo = db();
 $stmt = $pdo->query(
-    'SELECT id, mode, vx, vy, turn_rate, speed, height, client_id, UNIX_TIMESTAMP(updated_at) AS updated_unix
+    'SELECT id, mode, vx, vy, turn_rate, speed, height, client_id,
+            lock_owner_id, UNIX_TIMESTAMP(lock_seen_at) AS lock_seen_unix,
+            UNIX_TIMESTAMP(updated_at) AS updated_unix
      FROM hexapod_command
      WHERE id = 1
      LIMIT 1'
@@ -39,4 +41,5 @@ json_response(200, [
         'updated_unix' => $updatedUnix,
         'age_s' => $age,
     ],
+    'lock' => lock_status($row),
 ]);

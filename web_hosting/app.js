@@ -21,16 +21,28 @@ if (!clientId) {
 let apiToken = localStorage.getItem(TOKEN_KEY) || '';
 
 const connectionEl = document.getElementById('connection');
+const lockEl = document.getElementById('lock-status');
 const speedEl = document.getElementById('speed');
 const heightEl = document.getElementById('height');
 const moveReadout = document.getElementById('move-readout');
 const turnReadout = document.getElementById('turn-readout');
-const moveKnob = document.getElementById('move-knob');
-const turnKnob = document.getElementById('turn-knob');
 const tokenInput = document.getElementById('api-token');
 const saveTokenBtn = document.getElementById('save-token');
+const takeoverBtn = document.getElementById('takeover');
 
 if (apiToken) tokenInput.value = apiToken;
+
+function setLockText(lock) {
+  if (!lock || lock.active !== true) {
+    lockEl.textContent = 'Lock: free';
+    return;
+  }
+  if (lock.owner_id === clientId) {
+    lockEl.textContent = 'Lock: yours';
+  } else {
+    lockEl.textContent = 'Lock: another device';
+  }
+}
 
 saveTokenBtn.addEventListener('click', () => {
   apiToken = tokenInput.value.trim();
@@ -110,6 +122,31 @@ function resolveMode() {
   return 'stop';
 }
 
+async function takeControl() {
+  if (!apiToken) {
+    connectionEl.textContent = 'Enter token first';
+    return;
+  }
+  try {
+    const res = await fetch('takeover.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Token': apiToken,
+      },
+      body: JSON.stringify({ client_id: clientId }),
+    });
+    const payload = await res.json();
+    if (!res.ok || payload.ok === false) throw new Error('takeover_failed');
+    setLockText(payload.lock);
+    connectionEl.textContent = 'Control taken';
+  } catch {
+    connectionEl.textContent = 'Take control failed';
+  }
+}
+
+takeoverBtn.addEventListener('click', takeControl);
+
 async function sendState() {
   state.mode = resolveMode();
   if (!apiToken) {
@@ -133,15 +170,22 @@ async function sendState() {
         connectionEl.textContent = 'Invalid token';
         return;
       }
+      if (res.status === 409 && payload.lock) {
+        setLockText(payload.lock);
+        connectionEl.textContent = 'Locked by another device';
+        return;
+      }
       throw new Error(`HTTP ${res.status}`);
     }
+
+    setLockText(payload.lock);
     connectionEl.textContent = `Connected - mode: ${state.mode}`;
   } catch {
     connectionEl.textContent = 'Disconnected - retrying...';
   }
 }
 
-setInterval(sendState, 40);
+setInterval(sendState, 50);
 window.addEventListener('beforeunload', () => {
   if (!apiToken) return;
   navigator.sendBeacon(

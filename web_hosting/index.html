@@ -2,15 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Hexapod Internet Controller</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <header>
-        <h1>Hexapod Internet Controller</h1>
-        <p id="connection">Disconnected</p>
+        <div>
+          <h1>Hexapod Internet Controller</h1>
+          <p id="connection">Disconnected</p>
+        </div>
+        <div class="lock-box">
+          <p id="lock-status">Lock: unknown</p>
+          <button id="takeover" type="button">Take Control</button>
+        </div>
       </header>
 
       <section class="panel auth-panel">

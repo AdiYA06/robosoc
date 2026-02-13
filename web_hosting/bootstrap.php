@@ -96,3 +96,29 @@ function clamp_float(mixed $value, float $lo, float $hi, float $default): float 
     }
     return $x;
 }
+
+function lock_timeout_seconds(): float {
+    if (defined('LOCK_TIMEOUT_S') && is_numeric(LOCK_TIMEOUT_S)) {
+        $value = (float)LOCK_TIMEOUT_S;
+        if ($value > 0) {
+            return $value;
+        }
+    }
+    return 2.0;
+}
+
+function lock_status(array $row): array {
+    $ownerId = (string)($row['lock_owner_id'] ?? '');
+    $lockSeenUnix = isset($row['lock_seen_unix']) ? (float)$row['lock_seen_unix'] : 0.0;
+    $timeout = lock_timeout_seconds();
+    $active = false;
+    if ($ownerId !== '' && $lockSeenUnix > 0.0) {
+        $active = (microtime(true) - $lockSeenUnix) <= $timeout;
+    }
+
+    return [
+        'active' => $active,
+        'owner_id' => $active ? $ownerId : '',
+        'timeout_s' => $timeout,
+    ];
+}
