@@ -26,6 +26,8 @@ const speedEl = document.getElementById('speed');
 const heightEl = document.getElementById('height');
 const moveReadout = document.getElementById('move-readout');
 const turnReadout = document.getElementById('turn-readout');
+const moveKnob = document.getElementById('move-knob');
+const turnKnob = document.getElementById('turn-knob');
 const tokenInput = document.getElementById('api-token');
 const saveTokenBtn = document.getElementById('save-token');
 const takeoverBtn = document.getElementById('takeover');
@@ -113,6 +115,74 @@ makePad('turn-pad', 'turn-knob', (x) => {
   state.turn = Number(x.toFixed(3));
   turnReadout.textContent = `turn ${state.turn.toFixed(2)}`;
 }, { horizontalOnly: true });
+
+function renderOverlay() {
+  moveKnob.style.left = `${50 + state.vy * 35}%`;
+  moveKnob.style.top = `${50 - state.vx * 35}%`;
+  turnKnob.style.left = `${50 + state.turn * 35}%`;
+  turnKnob.style.top = '50%';
+  moveReadout.textContent = `vx ${state.vx.toFixed(2)} | vy ${state.vy.toFixed(2)}`;
+  turnReadout.textContent = `turn ${state.turn.toFixed(2)}`;
+}
+
+const pressed = new Set();
+const keyMap = new Set(['w', 'a', 's', 'd', 'j', 'k']);
+const keyTarget = { vx: 0, vy: 0, turn: 0 };
+const KEY_EASE_ALPHA = 0.22;
+let keyboardEasingActive = false;
+
+function updateKeyboardTargets() {
+  keyTarget.vx = (pressed.has('w') ? 1 : 0) + (pressed.has('s') ? -1 : 0);
+  keyTarget.vy = (pressed.has('d') ? 1 : 0) + (pressed.has('a') ? -1 : 0);
+  keyTarget.turn = (pressed.has('k') ? 1 : 0) + (pressed.has('j') ? -1 : 0);
+  keyboardEasingActive = true;
+}
+
+function keyboardEasingTick() {
+  if (!keyboardEasingActive) {
+    requestAnimationFrame(keyboardEasingTick);
+    return;
+  }
+
+  state.vx += (keyTarget.vx - state.vx) * KEY_EASE_ALPHA;
+  state.vy += (keyTarget.vy - state.vy) * KEY_EASE_ALPHA;
+  state.turn += (keyTarget.turn - state.turn) * KEY_EASE_ALPHA;
+
+  if (Math.abs(keyTarget.vx - state.vx) < 0.01) state.vx = keyTarget.vx;
+  if (Math.abs(keyTarget.vy - state.vy) < 0.01) state.vy = keyTarget.vy;
+  if (Math.abs(keyTarget.turn - state.turn) < 0.01) state.turn = keyTarget.turn;
+  renderOverlay();
+
+  if (
+    pressed.size === 0 &&
+    state.vx === keyTarget.vx &&
+    state.vy === keyTarget.vy &&
+    state.turn === keyTarget.turn
+  ) {
+    keyboardEasingActive = false;
+  }
+  requestAnimationFrame(keyboardEasingTick);
+}
+
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (!keyMap.has(key)) return;
+  if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+    return;
+  }
+  e.preventDefault();
+  pressed.add(key);
+  updateKeyboardTargets();
+});
+
+window.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (!keyMap.has(key)) return;
+  e.preventDefault();
+  pressed.delete(key);
+  updateKeyboardTargets();
+});
+requestAnimationFrame(keyboardEasingTick);
 
 function resolveMode() {
   const turning = Math.abs(state.turn) > 0.001;
