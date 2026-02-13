@@ -101,15 +101,41 @@ function resolveMode() {
 
 const pressed = new Set();
 const keyMap = new Set(["w", "a", "s", "d", "j", "k"]);
+const keyTarget = { vx: 0, vy: 0, turn: 0 };
+const KEY_EASE_ALPHA = 0.22;
+let keyboardEasingActive = false;
 
-function applyKeyboardState() {
-  const vx = (pressed.has("w") ? 1 : 0) + (pressed.has("s") ? -1 : 0);
-  const vy = (pressed.has("d") ? 1 : 0) + (pressed.has("a") ? -1 : 0);
-  const turn = (pressed.has("k") ? 1 : 0) + (pressed.has("j") ? -1 : 0);
-  state.vx = vx;
-  state.vy = vy;
-  state.turn = turn;
+function updateKeyboardTargets() {
+  keyTarget.vx = (pressed.has("w") ? 1 : 0) + (pressed.has("s") ? -1 : 0);
+  keyTarget.vy = (pressed.has("d") ? 1 : 0) + (pressed.has("a") ? -1 : 0);
+  keyTarget.turn = (pressed.has("k") ? 1 : 0) + (pressed.has("j") ? -1 : 0);
+  keyboardEasingActive = true;
+}
+
+function keyboardEasingTick() {
+  if (!keyboardEasingActive) {
+    requestAnimationFrame(keyboardEasingTick);
+    return;
+  }
+
+  state.vx += (keyTarget.vx - state.vx) * KEY_EASE_ALPHA;
+  state.vy += (keyTarget.vy - state.vy) * KEY_EASE_ALPHA;
+  state.turn += (keyTarget.turn - state.turn) * KEY_EASE_ALPHA;
+
+  if (Math.abs(keyTarget.vx - state.vx) < 0.01) state.vx = keyTarget.vx;
+  if (Math.abs(keyTarget.vy - state.vy) < 0.01) state.vy = keyTarget.vy;
+  if (Math.abs(keyTarget.turn - state.turn) < 0.01) state.turn = keyTarget.turn;
   renderKeyboardOverlay();
+
+  if (
+    pressed.size === 0 &&
+    state.vx === keyTarget.vx &&
+    state.vy === keyTarget.vy &&
+    state.turn === keyTarget.turn
+  ) {
+    keyboardEasingActive = false;
+  }
+  requestAnimationFrame(keyboardEasingTick);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -120,7 +146,7 @@ window.addEventListener("keydown", (e) => {
   }
   e.preventDefault();
   pressed.add(key);
-  applyKeyboardState();
+  updateKeyboardTargets();
 });
 
 window.addEventListener("keyup", (e) => {
@@ -128,8 +154,9 @@ window.addEventListener("keyup", (e) => {
   if (!keyMap.has(key)) return;
   e.preventDefault();
   pressed.delete(key);
-  applyKeyboardState();
+  updateKeyboardTargets();
 });
+requestAnimationFrame(keyboardEasingTick);
 
 takeoverBtn.addEventListener("click", async () => {
   try {

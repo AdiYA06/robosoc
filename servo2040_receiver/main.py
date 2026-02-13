@@ -65,7 +65,7 @@ class HexapodRobot:
         vx = cmd.get("vx", 0.0)
         vy = cmd.get("vy", 0.0)
         turn = cmd.get("turn", 0.0)
-        speed = cmd.get("speed", 0.4)
+        speed = cmd.get("speed", 1)
         height = cmd.get("height", 0.0)
         stance_z = -125 + (height * 45)   # exact: -170 .. -80
         xpos = 130 + (stance_z + 125) * (20 / 45)  # ~0.4444
@@ -99,7 +99,7 @@ class HexapodRobot:
             self.tripot.turn_step(
                 self.legs,
                 turn_ratio=turn,
-                max_angle=20 + 30 * turn_mag,
+                max_angle=10 + 30 * turn_mag,
                 T=80 + int(70 * speed),
                 body_height=stance_z,
                 A=20 + int(20 * speed),
