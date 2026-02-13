@@ -3,4 +3,3 @@ img/
 __pycache__/
 *.gif
 *.py[cod]
-web_hosting/config.php
