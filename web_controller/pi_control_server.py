@@ -126,9 +126,13 @@ def clamp(value: Any, lo: float, hi: float, default: float) -> float:
 class HexapodController:
     """Hook this class into your servo/gait code."""
 
-    def __init__(self, transport: "LineTransport") -> None:
+    def __init__(self, transport: "LineTransport", verbose_stream: bool = False, event_logs: bool = True) -> None:
         self.transport = transport
+        self.verbose_stream = verbose_stream
+        self.event_logs = event_logs
         self._last_print = 0.0
+        self._last_mode: str | None = None
+        self._last_moving = False
 
     def apply(self, state: ControlState) -> None:
         packet = {
@@ -143,7 +147,11 @@ class HexapodController:
         self.transport.send_line(json.dumps(packet))
 
         now = time.time()
-        if now - self._last_print >= 0.15:
+        moving = abs(state.vx) > 0.02 or abs(state.vy) > 0.02 or abs(state.turn) > 0.02
+        mode_changed = state.mode != self._last_mode
+        movement_changed = moving != self._last_moving
+
+        if self.verbose_stream and (now - self._last_print >= 0.15):
             self._last_print = now
             print(
                 "mode={mode:>6} vx={vx:+.2f} vy={vy:+.2f} turn={turn:+.2f} "
@@ -156,6 +164,11 @@ class HexapodController:
                     height=state.height,
                 )
             )
+        elif self.event_logs and (mode_changed or movement_changed):
+            print(f"control mode={state.mode} moving={'yes' if moving else 'no'} speed={state.speed:.2f}")
+
+        self._last_mode = state.mode
+        self._last_moving = moving
 
 
 class LineTransport:
@@ -364,6 +377,7 @@ def main() -> None:
     parser.add_argument("--serial-port", default=os.getenv("SERIAL_PORT", ""))
     parser.add_argument("--baud", type=int, default=int(os.getenv("SERIAL_BAUD", "115200")))
     parser.add_argument("--serial-required", action="store_true")
+    parser.add_argument("--verbose-stream", action="store_true", help="Print continuous state stream")
     parser.add_argument("--internet", action="store_true", help="Enable internet-ready mode (requires auth)")
     parser.add_argument("--auth-user", default=os.getenv("HEXAPOD_AUTH_USER", ""))
     parser.add_argument("--auth-pass", default=os.getenv("HEXAPOD_AUTH_PASS", ""))
@@ -385,7 +399,7 @@ def main() -> None:
         print("Serial forwarding disabled (no --serial-port).")
         transport = StdoutTransport()
 
-    controller = HexapodController(transport)
+    controller = HexapodController(transport, verbose_stream=args.verbose_stream)
 
     thread = threading.Thread(target=control_loop, args=(shared, controller), daemon=True)
     thread.start()

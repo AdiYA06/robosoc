@@ -75,3 +75,9 @@ Then open:
 
 - Do not commit real API tokens/passwords into public repos.
 - Keep `web_hosting/config.php` secret in production.
+
+## Logging Modes
+
+- Quiet important-only logs are the default.
+- Add `--print-latency` to `pi_remote_client.py` if you want periodic `total_latency_ms=...` lines.
+- Add `--verbose-stream` to `pi_control_server.py` if you want continuous detailed state stream logs.
