@@ -20,9 +20,16 @@ const turnReadout = document.getElementById("turn-readout");
 const walkAngleEl = document.getElementById("walk-angle");
 const turnAngleEl = document.getElementById("turn-angle");
 const speedReadoutEl = document.getElementById("speed-readout");
+const headingReadoutEl = document.getElementById("heading-readout");
+const resetHeadingBtn = document.getElementById("reset-heading");
 const moveKnob = document.getElementById("move-knob");
 const turnKnob = document.getElementById("turn-knob");
 const takeoverBtn = document.getElementById("takeover");
+const RECEIVER_CONTROL_HZ = 50;
+const TURN_CYCLE_GAIN = 1.0;
+let headingDeg = 0;
+let lastHeadingTsMs = performance.now();
+let turnCycleProgress = 0;
 
 heightEl.addEventListener("input", () => {
   state.height = Number(heightEl.value);
@@ -48,6 +55,35 @@ function updateTelemetry() {
   const sign = turnDeg >= 0 ? "+" : "";
   turnAngleEl.textContent = `angle ${sign}${turnDeg.toFixed(0)}°`;
   speedReadoutEl.textContent = `speed ${state.speed.toFixed(2)}`;
+  const headingSign = headingDeg >= 0 ? "+" : "";
+  headingReadoutEl.textContent = `heading ${headingSign}${headingDeg.toFixed(1)}°`;
+}
+
+function updateHeadingEstimate(mode) {
+  const nowMs = performance.now();
+  const dtS = Math.max(0, Math.min(0.2, (nowMs - lastHeadingTsMs) / 1000));
+  lastHeadingTsMs = nowMs;
+  if (mode !== "turn") {
+    turnCycleProgress = 0;
+    return;
+  }
+
+  const turnMag = Math.min(1, Math.max(0, Math.abs(state.turn)));
+  const speed = Math.min(1, Math.max(0, state.speed));
+  const stepMin = 8;
+  const stepMax = 32;
+  const gaitStep = Math.round(stepMax - (stepMax - stepMin) * speed);
+  const cycleTicks = Math.max(2, 2 * (gaitStep + 1));
+  const cycleS = cycleTicks / RECEIVER_CONTROL_HZ;
+  turnCycleProgress += dtS / cycleS;
+
+  const cycleDeltaDeg = (10 + 30 * turnMag) * state.turn * TURN_CYCLE_GAIN;
+  while (turnCycleProgress >= 1) {
+    headingDeg += cycleDeltaDeg;
+    if (headingDeg <= -180) headingDeg += 360;
+    if (headingDeg > 180) headingDeg -= 360;
+    turnCycleProgress -= 1;
+  }
 }
 
 function makePad(padId, knobId, onChange, options = {}) {
@@ -199,10 +235,17 @@ takeoverBtn.addEventListener("click", async () => {
     connectionEl.textContent = "Take control failed";
   }
 });
+resetHeadingBtn.addEventListener("click", () => {
+  headingDeg = 0;
+  lastHeadingTsMs = performance.now();
+  updateTelemetry();
+});
 
 async function sendState() {
   state.mode = resolveMode();
   state.speed = computeDynamicSpeed();
+  updateHeadingEstimate(state.mode);
+  updateTelemetry();
   try {
     const res = await fetch("/api/control", {
       method: "POST",

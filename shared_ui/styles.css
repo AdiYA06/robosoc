@@ -199,3 +199,29 @@ button {
     width: min(100%, 42vw);
   }
 }
+
+.heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.secondary-btn {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  background: #233248;
+}
+
+@media (max-width: 520px) {
+  .heading-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .secondary-btn {
+    width: 100%;
+  }
+}
