@@ -37,6 +37,12 @@ h1, h2, p {
   margin: 0;
 }
 
+.meta {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
 h1 {
   font-size: clamp(1.15rem, 3.8vw, 1.75rem);
 }

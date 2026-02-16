@@ -25,6 +25,9 @@ const lockEl = document.getElementById('lock-status');
 const heightEl = document.getElementById('height');
 const moveReadout = document.getElementById('move-readout');
 const turnReadout = document.getElementById('turn-readout');
+const walkAngleEl = document.getElementById('walk-angle');
+const turnAngleEl = document.getElementById('turn-angle');
+const speedReadoutEl = document.getElementById('speed-readout');
 const moveKnob = document.getElementById('move-knob');
 const turnKnob = document.getElementById('turn-knob');
 const tokenInput = document.getElementById('api-token');
@@ -63,6 +66,22 @@ function computeDynamicSpeed() {
   const moveMag = Math.min(1, Math.hypot(state.vx, state.vy));
   const turnMag = Math.min(1, Math.abs(state.turn));
   return Number(Math.max(moveMag, turnMag).toFixed(3));
+}
+
+function updateTelemetry() {
+  const moveMag = Math.min(1, Math.hypot(state.vx, state.vy));
+  if (moveMag > 0.02) {
+    const walkAngle = Math.atan2(state.vy, state.vx) * (180 / Math.PI);
+    const sign = walkAngle >= 0 ? '+' : '';
+    walkAngleEl.textContent = `angle ${sign}${walkAngle.toFixed(0)}°`;
+  } else {
+    walkAngleEl.textContent = 'angle --';
+  }
+
+  const turnDeg = state.turn * 40;
+  const sign = turnDeg >= 0 ? '+' : '';
+  turnAngleEl.textContent = `angle ${sign}${turnDeg.toFixed(0)}°`;
+  speedReadoutEl.textContent = `speed ${state.speed.toFixed(2)}`;
 }
 
 function makePad(padId, knobId, onChange, options = {}) {
@@ -111,11 +130,15 @@ makePad('move-pad', 'move-knob', (x, y) => {
   state.vx = Number(y.toFixed(3));
   state.vy = Number(x.toFixed(3));
   moveReadout.textContent = `vx ${state.vx.toFixed(2)} | vy ${state.vy.toFixed(2)}`;
+  state.speed = computeDynamicSpeed();
+  updateTelemetry();
 });
 
 makePad('turn-pad', 'turn-knob', (x) => {
   state.turn = Number(x.toFixed(3));
   turnReadout.textContent = `turn ${state.turn.toFixed(2)}`;
+  state.speed = computeDynamicSpeed();
+  updateTelemetry();
 }, { horizontalOnly: true });
 
 function renderOverlay() {
@@ -125,6 +148,8 @@ function renderOverlay() {
   turnKnob.style.top = '50%';
   moveReadout.textContent = `vx ${state.vx.toFixed(2)} | vy ${state.vy.toFixed(2)}`;
   turnReadout.textContent = `turn ${state.turn.toFixed(2)}`;
+  state.speed = computeDynamicSpeed();
+  updateTelemetry();
 }
 
 const pressed = new Set();
@@ -259,6 +284,7 @@ async function sendState() {
 }
 
 setInterval(sendState, 30);
+updateTelemetry();
 window.addEventListener('beforeunload', () => {
   if (!apiToken) return;
   navigator.sendBeacon(
