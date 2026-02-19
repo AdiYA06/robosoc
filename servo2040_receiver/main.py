@@ -16,17 +16,21 @@ CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 SAFE_POWER_MODE = True
 
 # Safe-power profile: reduce peak current spikes from aggressive gait changes.
-SAFE_WALK_SPEED_SCALE = 0.95
-SAFE_WALK_STRIDE_SCALE = 0.95
-SAFE_WALK_AMPLITUDE_SCALE = 0.90
+SAFE_WALK_SPEED_SCALE = 0.88
+SAFE_WALK_STRIDE_SCALE = 0.88
+SAFE_WALK_AMPLITUDE_SCALE = 0.84
 
 SAFE_TURN_SPEED_CAP = 0.45
 SAFE_TURN_INPUT_SCALE = 0.45
 SAFE_TURN_AMPLITUDE_SCALE = 0.65
 SAFE_TURN_ANGLE_SCALE = 0.45
+TURN_DIRECTION_SIGN = 1.0
+TURN_LIFT_BOOST = 8
+TURN_MIN_LIFT = 18
+TURN_BODY_RAISE = 6
 TURN_DEADBAND = 0.10
-TURN_SLEW_PER_TICK = 0.03
-TURN_REVERSE_COOLDOWN_TICKS = 6
+TURN_ACCEL_PER_TICK = 0.02
+TURN_DECEL_PER_TICK = 0.07
 
 last_cmd_ms = time.ticks_ms()
 last_cmd = {
@@ -52,7 +56,6 @@ class HexapodRobot:
         self.smoothed_vy = 0.0
         self.walk_vector_alpha = 0.18
         self.smoothed_turn = 0.0
-        self.turn_reverse_cooldown = 0
         self.step_min = 20
         self.step_max = 40
         self.legs = [
@@ -79,6 +82,34 @@ class HexapodRobot:
     def _angle_diff_deg(self, target, current):
         return self._wrap_angle_deg(target - current)
 
+    def _slew_turn(self, target_turn):
+        """Smooth turn input to avoid reversal current spikes.
+
+        - If requested direction flips, first decelerate to zero quickly.
+        - Then accelerate toward the new direction more slowly.
+        """
+        current = self.smoothed_turn
+        target = target_turn
+
+        opposite = (current > 0 and target < 0) or (current < 0 and target > 0)
+        if opposite:
+            if current > 0:
+                current = max(0.0, current - TURN_DECEL_PER_TICK)
+            else:
+                current = min(0.0, current + TURN_DECEL_PER_TICK)
+        else:
+            delta = target - current
+            if delta > TURN_ACCEL_PER_TICK:
+                delta = TURN_ACCEL_PER_TICK
+            elif delta < -TURN_ACCEL_PER_TICK:
+                delta = -TURN_ACCEL_PER_TICK
+            current += delta
+
+        if abs(current) < TURN_DEADBAND:
+            current = 0.0
+        self.smoothed_turn = max(-1.0, min(1.0, current))
+        return self.smoothed_turn
+
     def apply_command(self, cmd):
         """Live non-blocking gait control from web command packets."""
         mode = cmd.get("mode", "stop")
@@ -96,7 +127,6 @@ class HexapodRobot:
 
         if mode == "stop":
             self.smoothed_turn = 0.0
-            self.turn_reverse_cooldown = 0
             if self.last_mode != "stop":
                 for leg in self.legs:
                     leg.inverseKinematics([xpos, 0, stance_z], easing=1)
@@ -125,25 +155,10 @@ class HexapodRobot:
             turn_speed = speed
             if SAFE_POWER_MODE:
                 turn_speed = min(turn_speed, SAFE_TURN_SPEED_CAP)
-                turn = max(-1.0, min(1.0, turn * SAFE_TURN_INPUT_SCALE))
-            if abs(turn) < TURN_DEADBAND:
-                turn = 0.0
-            if (
-                self.smoothed_turn != 0.0
-                and turn != 0.0
-                and ((self.smoothed_turn > 0 and turn < 0) or (self.smoothed_turn < 0 and turn > 0))
-            ):
-                self.turn_reverse_cooldown = TURN_REVERSE_COOLDOWN_TICKS
-            if self.turn_reverse_cooldown > 0:
-                turn = 0.0
-                self.turn_reverse_cooldown -= 1
-            delta = turn - self.smoothed_turn
-            if delta > TURN_SLEW_PER_TICK:
-                delta = TURN_SLEW_PER_TICK
-            elif delta < -TURN_SLEW_PER_TICK:
-                delta = -TURN_SLEW_PER_TICK
-            self.smoothed_turn += delta
-            turn_cmd = max(-1.0, min(1.0, self.smoothed_turn))
+                turn = max(-1.0, min(1.0, turn * SAFE_TURN_INPUT_SCALE * TURN_DIRECTION_SIGN))
+            else:
+                turn = max(-1.0, min(1.0, turn * TURN_DIRECTION_SIGN))
+            turn_cmd = self._slew_turn(turn)
             turn_mag = abs(turn_cmd)
 
             turn_max_angle = 10 + 30 * turn_mag
@@ -152,12 +167,14 @@ class HexapodRobot:
             turn_A = 20 + int(20 * turn_speed)
             if SAFE_POWER_MODE:
                 turn_A = int(turn_A * SAFE_TURN_AMPLITUDE_SCALE)
+            turn_A = max(TURN_MIN_LIFT, turn_A + TURN_LIFT_BOOST)
+            turn_body_height = min(-80, stance_z + TURN_BODY_RAISE)
             self.tripot.turn_step(
                 self.legs,
                 turn_ratio=turn_cmd,
                 max_angle=turn_max_angle,
                 T=80 + int(70 * turn_speed),
-                body_height=stance_z,
+                body_height=turn_body_height,
                 A=turn_A,
                 step=gait_step,
                 xpos=xpos,
@@ -167,7 +184,6 @@ class HexapodRobot:
 
         if mode == "walk":
             self.smoothed_turn = 0.0
-            self.turn_reverse_cooldown = 0
             self.last_stop_height = None
             walk_speed = speed
             if SAFE_POWER_MODE:
