@@ -11,6 +11,14 @@ import tripot_gait
 FAILSAFE_S = 0.7
 CONTROL_HZ = 50
 CONTROL_DT_MS = int(1000 / CONTROL_HZ)
+SAFE_POWER_MODE = True
+
+# Safe-power profile: reduce peak current spikes from aggressive gait changes.
+SAFE_SPEED_SCALE = 0.65
+SAFE_TURN_SCALE = 0.60
+SAFE_STRIDE_SCALE = 0.70
+SAFE_AMPLITUDE_SCALE = 0.75
+SAFE_TURN_ANGLE_SCALE = 0.70
 
 last_cmd_ms = time.ticks_ms()
 last_cmd = {
@@ -69,6 +77,8 @@ class HexapodRobot:
         turn = cmd.get("turn", 0.0)
         speed = cmd.get("speed", 0.0)
         height = cmd.get("height", 0.0)
+        if SAFE_POWER_MODE:
+            speed = max(0.0, min(1.0, speed * SAFE_SPEED_SCALE))
         stance_z = -125 + (height * 45)   # exact: -170 .. -80
         xpos = 130 + (stance_z + 125) * (20 / 45)  # ~0.4444
         xpos = max(110, min(150, xpos))
@@ -100,13 +110,22 @@ class HexapodRobot:
             if self.last_mode != "turn":
                 self.tripot.reset_turn_phase()
             turn_mag = abs(turn)
+            if SAFE_POWER_MODE:
+                turn = max(-1.0, min(1.0, turn * SAFE_TURN_SCALE))
+                turn_mag = abs(turn)
+            turn_max_angle = 10 + 30 * turn_mag
+            if SAFE_POWER_MODE:
+                turn_max_angle *= SAFE_TURN_ANGLE_SCALE
+            turn_A = 20 + int(20 * speed)
+            if SAFE_POWER_MODE:
+                turn_A = int(turn_A * SAFE_AMPLITUDE_SCALE)
             self.tripot.turn_step(
                 self.legs,
                 turn_ratio=turn,
-                max_angle=10 + 30 * turn_mag,
+                max_angle=turn_max_angle,
                 T=80 + int(70 * speed),
                 body_height=stance_z,
-                A=20 + int(20 * speed),
+                A=turn_A,
                 step=gait_step,
                 xpos=xpos,
             )
@@ -131,12 +150,17 @@ class HexapodRobot:
             walk_angle = degrees(atan2(self.smoothed_vy, self.smoothed_vx))
             self.smoothed_walk_angle = walk_angle
             stride = max(30, int((60 + 100 * speed) * min(1.0, mag)))
+            if SAFE_POWER_MODE:
+                stride = max(24, int(stride * SAFE_STRIDE_SCALE))
+            walk_A = 15 + int(20 * speed)
+            if SAFE_POWER_MODE:
+                walk_A = int(walk_A * SAFE_AMPLITUDE_SCALE)
             self.tripot.walk_step(
                 self.legs,
                 angle=walk_angle,
                 T=stride,
                 body_height=stance_z,
-                A=15 + int(20 * speed),
+                A=walk_A,
                 step=gait_step,
                 xpos=xpos,
             )

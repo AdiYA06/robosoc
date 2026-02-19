@@ -133,6 +133,7 @@ class HexapodController:
         self._last_print = 0.0
         self._last_mode: str | None = None
         self._last_moving = False
+        self._last_status_line = ""
 
     def apply(self, state: ControlState) -> None:
         packet = {
@@ -165,7 +166,10 @@ class HexapodController:
                 )
             )
         elif self.event_logs and (mode_changed or movement_changed):
-            print(f"control mode={state.mode} moving={'yes' if moving else 'no'} speed={state.speed:.2f}")
+            status_line = f"mode={state.mode} moving={'yes' if moving else 'no'} speed={state.speed:.2f}"
+            if status_line != self._last_status_line:
+                print(f"\r{status_line:<60}", end="", flush=True)
+                self._last_status_line = status_line
 
         self._last_mode = state.mode
         self._last_moving = moving
