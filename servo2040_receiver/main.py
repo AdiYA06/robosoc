@@ -9,6 +9,8 @@ import legs_IK
 import tripot_gait
 
 FAILSAFE_S = 0.7
+FAILSAFE_HOLD_S = 0.25
+FAILSAFE_DECAY_S = 1.10
 CONTROL_HZ = 50
 CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 SAFE_POWER_MODE = True
@@ -244,11 +246,42 @@ def apply_failsafe():
         "vx": 0.0,
         "vy": 0.0,
         "turn": 0.0,
-        "speed": last_cmd.get("speed", 0.0),
+        "speed": 0.0,
         "height": last_cmd.get("height", 0.0),
         "ts": 0.0,
     }
     apply_command(stop_cmd)
+
+
+def apply_soft_failsafe(elapsed_ms):
+    """Mask brief command dropouts and ramp down smoothly on longer losses."""
+    hold_ms = int(FAILSAFE_HOLD_S * 1000)
+    decay_ms = max(1, int(FAILSAFE_DECAY_S * 1000))
+
+    if elapsed_ms <= hold_ms:
+        # Keep the last command for short link blips.
+        apply_command(last_cmd)
+        return
+
+    t = elapsed_ms - hold_ms
+    if t >= decay_ms:
+        apply_failsafe()
+        return
+
+    # Linear decay from 1 -> 0 during decay window.
+    ratio = max(0.0, 1.0 - (t / decay_ms))
+    soft_cmd = {
+        "mode": "turn" if abs(last_cmd.get("turn", 0.0)) > 0.02 else ("walk" if (abs(last_cmd.get("vx", 0.0)) > 0.02 or abs(last_cmd.get("vy", 0.0)) > 0.02) else "stop"),
+        "vx": last_cmd.get("vx", 0.0) * ratio,
+        "vy": last_cmd.get("vy", 0.0) * ratio,
+        "turn": last_cmd.get("turn", 0.0) * ratio,
+        "speed": last_cmd.get("speed", 0.0) * ratio,
+        "height": last_cmd.get("height", 0.0),
+        "ts": 0.0,
+    }
+    if ratio < 0.02:
+        soft_cmd["mode"] = "stop"
+    apply_command(soft_cmd)
 
 
 def main():
@@ -282,7 +315,7 @@ def main():
         if time.ticks_diff(now_ms, next_tick_ms) >= 0:
             elapsed = time.ticks_diff(now_ms, last_cmd_ms)
             if elapsed > int(FAILSAFE_S * 1000):
-                apply_failsafe()
+                apply_soft_failsafe(elapsed)
             else:
                 apply_command(last_cmd)
             next_tick_ms = time.ticks_add(next_tick_ms, CONTROL_DT_MS)
