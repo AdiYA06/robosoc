@@ -36,8 +36,7 @@ python3 web_controller/pi_remote_client.py \
   --poll-hz 40 \
   --http-timeout-s 0.4 \
   --stale-timeout-s 1.5 \
-  --print-latency \
-  --serial-port /dev/ttyACM0 \
+  --serial-port /dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_e6617c93e39c662b-if00 \
   --baud 115200 \
   --serial-required
 ```

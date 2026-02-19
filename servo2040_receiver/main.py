@@ -24,10 +24,6 @@ SAFE_TURN_SPEED_CAP = 0.45
 SAFE_TURN_INPUT_SCALE = 0.45
 SAFE_TURN_AMPLITUDE_SCALE = 0.65
 SAFE_TURN_ANGLE_SCALE = 0.45
-TURN_DIRECTION_SIGN = 1.0
-TURN_LIFT_BOOST = 8
-TURN_MIN_LIFT = 18
-TURN_BODY_RAISE = 6
 TURN_DEADBAND = 0.10
 TURN_ACCEL_PER_TICK = 0.02
 TURN_DECEL_PER_TICK = 0.07
@@ -155,9 +151,9 @@ class HexapodRobot:
             turn_speed = speed
             if SAFE_POWER_MODE:
                 turn_speed = min(turn_speed, SAFE_TURN_SPEED_CAP)
-                turn = max(-1.0, min(1.0, turn * SAFE_TURN_INPUT_SCALE * TURN_DIRECTION_SIGN))
+                turn = max(-1.0, min(1.0, turn * SAFE_TURN_INPUT_SCALE))
             else:
-                turn = max(-1.0, min(1.0, turn * TURN_DIRECTION_SIGN))
+                turn = max(-1.0, min(1.0, turn))
             turn_cmd = self._slew_turn(turn)
             turn_mag = abs(turn_cmd)
 
@@ -167,14 +163,12 @@ class HexapodRobot:
             turn_A = 20 + int(20 * turn_speed)
             if SAFE_POWER_MODE:
                 turn_A = int(turn_A * SAFE_TURN_AMPLITUDE_SCALE)
-            turn_A = max(TURN_MIN_LIFT, turn_A + TURN_LIFT_BOOST)
-            turn_body_height = min(-80, stance_z + TURN_BODY_RAISE)
             self.tripot.turn_step(
                 self.legs,
                 turn_ratio=turn_cmd,
                 max_angle=turn_max_angle,
                 T=80 + int(70 * turn_speed),
-                body_height=turn_body_height,
+                body_height=stance_z,
                 A=turn_A,
                 step=gait_step,
                 xpos=xpos,
