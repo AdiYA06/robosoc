@@ -190,9 +190,13 @@ class SerialTransport(LineTransport):
         self.baudrate = baudrate
         self.required = required
         self._serial = None
+        self._last_connect_attempt = 0.0
+        self._connect_retry_s = 0.8
+        self._last_connect_error = ""
         self._connect()
 
     def _connect(self) -> None:
+        self._last_connect_attempt = time.time()
         try:
             import serial  # type: ignore
         except Exception as exc:
@@ -204,21 +208,36 @@ class SerialTransport(LineTransport):
         try:
             self._serial = serial.Serial(self.port, self.baudrate, timeout=0.01)
             print(f"Serial transport connected: {self.port} @ {self.baudrate}")
+            self._last_connect_error = ""
         except Exception as exc:
             if self.required:
-                raise RuntimeError(f"Failed to open serial port {self.port}") from exc
-            print(f"Serial transport not available on {self.port}: {exc}")
+                msg = str(exc)
+                if msg != self._last_connect_error:
+                    print(f"Serial transport unavailable on {self.port}: {exc}")
+                    self._last_connect_error = msg
+            else:
+                print(f"Serial transport not available on {self.port}: {exc}")
             self._serial = None
 
     def send_line(self, text: str) -> None:
+        now = time.time()
+        if self._serial is None:
+            if (now - self._last_connect_attempt) >= self._connect_retry_s:
+                self._connect()
+            if self._serial is None:
+                return
+
         if self._serial is None:
             return
         try:
             self._serial.write((text + "\n").encode("utf-8"))
         except Exception:
+            try:
+                self._serial.close()
+            except Exception:
+                pass
             self._serial = None
-            if self.required:
-                raise
+            print("Serial write failed; will retry connection.")
 
     def close(self) -> None:
         if self._serial is not None:
