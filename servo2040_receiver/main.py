@@ -19,6 +19,8 @@ SAFE_TURN_SCALE = 0.60
 SAFE_STRIDE_SCALE = 0.70
 SAFE_AMPLITUDE_SCALE = 0.75
 SAFE_TURN_ANGLE_SCALE = 0.70
+TURN_DEADBAND = 0.08
+TURN_SLEW_PER_TICK = 0.05
 
 last_cmd_ms = time.ticks_ms()
 last_cmd = {
@@ -43,6 +45,7 @@ class HexapodRobot:
         self.smoothed_vx = 0.0
         self.smoothed_vy = 0.0
         self.walk_vector_alpha = 0.18
+        self.smoothed_turn = 0.0
         self.step_min = 20
         self.step_max = 40
         self.legs = [
@@ -86,6 +89,7 @@ class HexapodRobot:
         gait_step = max(self.step_min, min(self.step_max, gait_step))
 
         if mode == "stop":
+            self.smoothed_turn = 0.0
             if self.last_mode != "stop":
                 for leg in self.legs:
                     leg.inverseKinematics([xpos, 0, stance_z], easing=1)
@@ -109,10 +113,21 @@ class HexapodRobot:
             self.smoothed_vy = 0.0
             if self.last_mode != "turn":
                 self.tripot.reset_turn_phase()
-            turn_mag = abs(turn)
+
+            # Prevent hard left<->right reversals from creating current spikes.
             if SAFE_POWER_MODE:
                 turn = max(-1.0, min(1.0, turn * SAFE_TURN_SCALE))
-                turn_mag = abs(turn)
+            if abs(turn) < TURN_DEADBAND:
+                turn = 0.0
+            delta = turn - self.smoothed_turn
+            if delta > TURN_SLEW_PER_TICK:
+                delta = TURN_SLEW_PER_TICK
+            elif delta < -TURN_SLEW_PER_TICK:
+                delta = -TURN_SLEW_PER_TICK
+            self.smoothed_turn += delta
+            turn_cmd = max(-1.0, min(1.0, self.smoothed_turn))
+            turn_mag = abs(turn_cmd)
+
             turn_max_angle = 10 + 30 * turn_mag
             if SAFE_POWER_MODE:
                 turn_max_angle *= SAFE_TURN_ANGLE_SCALE
@@ -121,7 +136,7 @@ class HexapodRobot:
                 turn_A = int(turn_A * SAFE_AMPLITUDE_SCALE)
             self.tripot.turn_step(
                 self.legs,
-                turn_ratio=turn,
+                turn_ratio=turn_cmd,
                 max_angle=turn_max_angle,
                 T=80 + int(70 * speed),
                 body_height=stance_z,
@@ -133,6 +148,7 @@ class HexapodRobot:
             return
 
         if mode == "walk":
+            self.smoothed_turn = 0.0
             self.last_stop_height = None
             if self.last_mode != "walk":
                 self.tripot.reset_walk_phase()
