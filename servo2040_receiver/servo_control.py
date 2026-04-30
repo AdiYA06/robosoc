@@ -1,81 +1,80 @@
-from machine import Pin, PWM
+"""Servo2040 servo output using one shared Pimoroni ServoCluster."""
+
 import time
-from math import *
+from math import cos, pi
+from servo import ServoCluster
+
+
+ANGLE_DEADBAND = 0.6
+SERVO_MIN_US = 500
+SERVO_MAX_US = 2500
+
+_SHARED_CLUSTER = None
+_SHARED_PIN_TO_INDEX = {}
+
+
+def clamp_angle(angle_deg):
+    if angle_deg < 0:
+        return 0
+    if angle_deg > 180:
+        return 180
+    return angle_deg
+
+
+def angle_to_pulse_us(angle_deg):
+    return SERVO_MIN_US + (clamp_angle(angle_deg) / 180) * (SERVO_MAX_US - SERVO_MIN_US)
+
+
+def configure_shared_cluster(pin_groups):
+    """Create one ServoCluster for every physical pin used by the robot."""
+    global _SHARED_CLUSTER, _SHARED_PIN_TO_INDEX
+
+    pins = []
+    for group in pin_groups:
+        if group is None:
+            continue
+        for pin in group:
+            if pin not in pins:
+                pins.append(pin)
+
+    _SHARED_PIN_TO_INDEX = {pin: idx for idx, pin in enumerate(pins)}
+    _SHARED_CLUSTER = ServoCluster(pio=0, sm=0, pins=pins) if pins else None
+    print("ServoCluster connected pins", pins)
+
 
 class servo_movement:
     def __init__(self, pin_list):
-        self.servos = [self.make_servo(p) for p in pin_list]
+        self.pin_list = list(pin_list)
+        self.servo_indexes = [self._index_for_pin(pin) for pin in self.pin_list]
+        self.last_angles = [None for _ in self.pin_list]
+        self.angle_deadband = ANGLE_DEADBAND
 
-    def make_servo(self, pin_num):
-        pwm = PWM(Pin(pin_num))
+    def _index_for_pin(self, pin):
+        if _SHARED_CLUSTER is None:
+            configure_shared_cluster([self.pin_list])
+        if pin not in _SHARED_PIN_TO_INDEX:
+            raise RuntimeError("Pin {} was not included in ServoCluster setup".format(pin))
+        return _SHARED_PIN_TO_INDEX[pin]
 
-        # standard 50 Hz
-        pwm.freq(50)
-        return pwm
-    
-    def angle_to_duty(self, angle_deg):
-        # Clamp angle to 0–180
-        if angle_deg < 0:
-            angle_deg = 0
-        if angle_deg > 180:
-            angle_deg = 180
-        min_us = 500      # 0°
-        max_us = 2500     # 180°
-        us = min_us + (angle_deg / 180) * (max_us - min_us)
-        duty = int((us / 20000) * 65535)   # 20 ms period at 50 Hz
-        return duty
-    
     def turn_angles(self, angles):
-        for s, a in zip(self.servos, angles):
-            s.duty_u16(self.angle_to_duty(a))
-
-    def ease_in_out_quad(self, t):
-        """
-            Easing coefficient function, curve.
-            Parameters
-            ----------
-                t(float): a float within [0, 1], basically step.
-        """
-        return 2*t*t if t < 0.5 else 1 - ((-2*t + 2)**2) / 2
+        for idx, angle in enumerate(angles):
+            if idx >= len(self.servo_indexes):
+                break
+            last = self.last_angles[idx]
+            if last is not None and abs(angle - last) < self.angle_deadband:
+                continue
+            self.last_angles[idx] = angle
+            _SHARED_CLUSTER.pulse(self.servo_indexes[idx], angle_to_pulse_us(angle))
 
     def turn_angles_eased(self, target_angles, pre_angles, duration=0.2, steps=200):
-        """
-        Smoothly interpolate servos from pre_angles to target_angles using an ease-in-out sine curve.
-        Parameters
-        ----------
-        target_angles : Sequence[float]
-            Iterable of target angles for each servo (in the same units expected by self.turn_angles).
-        pre_angles : Sequence[float]
-            Iterable of starting angles corresponding to target_angles. Values are copied at call time.
-        duration : float, optional
-            Total time in seconds over which the interpolation runs (default 0.5). The method is blocking
-            for the duration of the motion.
-        steps : int, optional
-            Number of discrete interpolation steps (default 200). Higher values give smoother motion.
-        ------
-        ValueError
-            If steps is not a positive integer or duration is negative. (time.sleep will also raise for
-            invalid sleep values.)
-        Examples
-        --------
-        # Smoothly move from current_angles to goal_angles over 0.8 seconds with 400 steps:
-        # self.turn_angles_eased(goal_angles, current_angles, duration=0.8, steps=400)
-        """
         start_angles = list(pre_angles)
 
         for i in range(steps + 1):
             t = i / steps
-            # e = self.ease_in_out_quad(t) # basic ease motion curve.
-            e = -(cos(pi * t) - 1) / 2 # sine motion curve.
-
-            new_angles = []
-            for sa, ta in zip(start_angles, target_angles):
-                if sa == ta:
-                    # no change needed → keep constant angle
-                    new_angles.append(sa)
-                else:
-                    # easing interpolation
-                    new_angles.append(sa + (ta - sa) * e)
-
+            e = -(cos(pi * t) - 1) / 2
+            new_angles = [
+                sa if sa == ta else sa + (ta - sa) * e
+                for sa, ta in zip(start_angles, target_angles)
+            ]
             self.turn_angles(new_angles)
             time.sleep(duration / steps)

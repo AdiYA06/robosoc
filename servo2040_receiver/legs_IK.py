@@ -1,11 +1,15 @@
-from math import *
-import time
+from math import acos, asin, atan2, cos, degrees, pi, radians, sin, sqrt
 try:
     import servo_control
     is_simulate = False
-except:
+except ImportError:
     print("servo_control module not found. Running in simulation mode.")
     is_simulate = True
+
+
+SERVO_OFFSETS = (90, 90, 0)
+
+
 class SpiderLeg:
     def __init__(self, name, COXA, FEMUR, TIBIA, pin_list = None):
         """
@@ -15,10 +19,12 @@ class SpiderLeg:
                 COXA (float): Length of the Coxa segment.
                 FEMUR (float): Length of the Femur segment.
                 TIBIA (float): Length of the Tibia segment.
-                pin_list (list): List of GPIO pins for the servos controlling the leg.
+                pin_list (list | None): Servo GPIO pins. Use None for a virtual/disconnected leg.
             """
-        #spider leg => COXA-FEMUR-TIBIA
-        self.control = servo_control.servo_movement(pin_list) if not is_simulate else None
+        # Spider leg: COXA -> FEMUR -> TIBIA.
+        self.control = None
+        if not is_simulate and pin_list is not None:
+            self.control = servo_control.servo_movement(pin_list)
         self.name = name
         self.COXA = COXA
         self.FEMUR = FEMUR
@@ -37,7 +43,7 @@ class SpiderLeg:
         value = self.clamp(value)
         return acos(value)
     
-    def set_angles(self, angles, easing = 0):
+    def set_angles(self, angles, easing = 0, duration = 0.2, steps = 200):
         """
             Set the joint angles of the leg and move the servos accordingly.
             Args:
@@ -45,20 +51,19 @@ class SpiderLeg:
             Returns:
                 list: A list of the set joint angles in degrees.
         """
-        angles[0] += 90
-
-        angles[1] += 90
-        
-        # Store current angles for easing
+        target_angles = [
+            angle + SERVO_OFFSETS[idx]
+            for idx, angle in enumerate(angles)
+        ]
         pre_angles = self.get_angles()
         
-        _angles = self.normalize_angles(angles)
-        self.theta1, self.theta2, self.theta3 = _angles
-        if not is_simulate:
+        servo_angles = self.normalize_angles(target_angles)
+        self.theta1, self.theta2, self.theta3 = servo_angles
+        if self.control is not None:
             if easing:
-                self.control.turn_angles_eased(_angles, pre_angles)
+                self.control.turn_angles_eased(servo_angles, pre_angles, duration, steps)
             else:
-                self.control.turn_angles(_angles)
+                self.control.turn_angles(servo_angles)
         return self.get_angles()
     
     def get_angles(self):
@@ -153,7 +158,6 @@ class SpiderLeg:
         phi2 = self.cos_rule(self.TIBIA, H, self.FEMUR)
         phi3 = phi1 - theta2
         P = cos(phi3) * H
-        P2 = P - P1
         Yb = sin(theta1) * P
         Xb = cos(theta1) * P
         G1 = sin(phi3) * H * -1
@@ -167,32 +171,3 @@ class SpiderLeg:
 
         self.joints = jointLocation
         return jointLocation
-    
-if __name__ == '__main__' :
-    # Initialize a spider leg with given name and segment lengths
-    leg = SpiderLeg("Leg1", COXA=43.8, FEMUR=166, TIBIA=88) #mm
-
-    # Set the joint angles (in degrees) for the leg
-    leg.set_angles([0, 45, 70])
-
-    # Get the current joint angles
-    currentAngles = leg.get_angles()
-
-    # Get the current target position (x, y, z) of the leg tip
-    currentTarget = leg.get_target()
-    #Define the new tar4get
-    newTarget = [100, 100, 0]
-    # Calculate the joint angles required to reach a new target position using inverse kinematics
-    new_angles = leg.inverseKinematics(target=newTarget)
-
-    # Calculate the joint positions based on the joint angles using forward kinematics
-    # We do this to confirm that calculated angles are the ones required to reach the new target
-    joint_positions = leg.forwardKinematics()
-
-    # Print results
-    print("Current Joint Angles:", currentAngles)
-    print("Current Target Position:", currentTarget)
-    print("New Joint Angles:", new_angles)
-    print("New Joint Positions:", joint_positions)
-    print("Desired Target",newTarget,"Forward kinematics test", joint_positions[3])
-    print("Values in above arrays should be very close to each other")

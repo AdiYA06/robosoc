@@ -54,8 +54,8 @@ def fetch_state(endpoint: str, api_token: str, timeout_s: float) -> tuple[bool, 
         return False, None, 0.0, request_rtt_s
 
     mode = str(state_data.get('mode', 'stop'))
-    if mode not in {'stop', 'walk', 'turn', 'stance'}:
-        mode = 'stop'
+    if mode not in {'init', 'stand', 'stop', 'walk', 'turn', 'stance'}:
+        mode = 'stand'
 
     state = ControlState(
         mode=mode,
@@ -148,7 +148,7 @@ def main() -> None:
                 last_seen_ok = now
                 stale_remote = remote_age > args.stale_timeout_s
                 if stale_remote:
-                    last_state.mode = 'stop'
+                    last_state.mode = last_state.mode if last_state.mode in {'init', 'stand'} else 'stand'
                     last_state.vx = 0.0
                     last_state.vy = 0.0
                     last_state.turn = 0.0
@@ -161,7 +161,7 @@ def main() -> None:
                 if offline_too_long:
                     if connected:
                         connected = False
-                    last_state.mode = 'stop'
+                    last_state.mode = last_state.mode if last_state.mode in {'init', 'stand'} else 'stand'
                     last_state.vx = 0.0
                     last_state.vy = 0.0
                     last_state.turn = 0.0

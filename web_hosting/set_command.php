@@ -21,9 +21,9 @@ if ($clientId === '') {
 }
 
 $mode = strtolower(trim((string)($payload['mode'] ?? 'stop')));
-$allowedModes = ['stop', 'walk', 'turn', 'stance'];
+$allowedModes = ['init', 'stand', 'stop', 'walk', 'turn', 'stance'];
 if (!in_array($mode, $allowedModes, true)) {
-    $mode = 'stop';
+    $mode = 'init';
 }
 
 $vx = clamp_float($payload['vx'] ?? null, -1.0, 1.0, 0.0);
@@ -40,7 +40,7 @@ try {
 
     $ensureStmt = $pdo->prepare(
         'INSERT INTO hexapod_command (id, mode, vx, vy, turn_rate, speed, height, client_id, lock_owner_id, lock_seen_at)
-         VALUES (1, "stop", 0, 0, 0, 0.4, 0, "", "", NULL)
+         VALUES (1, "init", 0, 0, 0, 0.4, 0, "", "", NULL)
          ON DUPLICATE KEY UPDATE id = id'
     );
     $ensureStmt->execute();

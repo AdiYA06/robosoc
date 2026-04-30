@@ -215,8 +215,36 @@ button {
   background: #233248;
 }
 
+.pose-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.pose-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.pose-buttons .active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 55%);
+}
+
+.pad.disabled {
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
 @media (max-width: 520px) {
   .heading-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pose-row,
+  .pose-buttons {
     flex-direction: column;
     align-items: stretch;
   }

@@ -1,5 +1,6 @@
 const state = {
-  mode: "stop",
+  mode: "init",
+  pose: "init",
   vx: 0,
   vy: 0,
   turn: 0,
@@ -22,18 +23,57 @@ const turnAngleEl = document.getElementById("turn-angle");
 const speedReadoutEl = document.getElementById("speed-readout");
 const headingReadoutEl = document.getElementById("heading-readout");
 const resetHeadingBtn = document.getElementById("reset-heading");
+const poseReadoutEl = document.getElementById("pose-readout");
+const poseInitBtn = document.getElementById("pose-init");
+const poseStandBtn = document.getElementById("pose-stand");
+const movePad = document.getElementById("move-pad");
+const turnPad = document.getElementById("turn-pad");
 const moveKnob = document.getElementById("move-knob");
 const turnKnob = document.getElementById("turn-knob");
 const takeoverBtn = document.getElementById("takeover");
 const RECEIVER_CONTROL_HZ = 50;
 const TURN_CYCLE_GAIN = 1.0;
+const STAND_UNLOCK_MS = 3000;
 let headingDeg = 0;
 let lastHeadingTsMs = performance.now();
 let turnCycleProgress = 0;
+let standReadyAtMs = 0;
 
 heightEl.addEventListener("input", () => {
   state.height = Number(heightEl.value);
 });
+
+function canMove() {
+  return state.pose === "stand" && performance.now() >= standReadyAtMs;
+}
+
+function resetMotion() {
+  state.vx = 0;
+  state.vy = 0;
+  state.turn = 0;
+  pressed.clear();
+  keyTarget.vx = 0;
+  keyTarget.vy = 0;
+  keyTarget.turn = 0;
+  keyboardEasingActive = false;
+  renderKeyboardOverlay();
+}
+
+function setPose(pose) {
+  state.pose = pose;
+  standReadyAtMs = pose === "stand" ? performance.now() + STAND_UNLOCK_MS : 0;
+  resetMotion();
+  renderPoseState();
+  poseInitBtn.classList.toggle("active", pose === "init");
+  poseStandBtn.classList.toggle("active", pose === "stand");
+}
+
+function renderPoseState() {
+  const locked = state.pose === "stand" && !canMove();
+  poseReadoutEl.textContent = locked ? "state standing..." : `state ${state.pose}`;
+  movePad.classList.toggle("disabled", !canMove());
+  turnPad.classList.toggle("disabled", !canMove());
+}
 
 function computeDynamicSpeed() {
   const moveMag = Math.min(1, Math.hypot(state.vx, state.vy));
@@ -92,6 +132,10 @@ function makePad(padId, knobId, onChange, options = {}) {
   const horizontalOnly = Boolean(options.horizontalOnly);
 
   function update(clientX, clientY) {
+    if (!canMove()) {
+      reset();
+      return;
+    }
     const rect = pad.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -118,6 +162,10 @@ function makePad(padId, knobId, onChange, options = {}) {
   }
 
   pad.addEventListener("pointerdown", (e) => {
+    if (!canMove()) {
+      reset();
+      return;
+    }
     pad.setPointerCapture(e.pointerId);
     update(e.clientX, e.clientY);
   });
@@ -155,11 +203,12 @@ function renderKeyboardOverlay() {
 }
 
 function resolveMode() {
+  if (state.pose !== "stand") return "init";
   const turning = Math.abs(state.turn) > 0.001;
   const walking = Math.abs(state.vx) > 0.001 || Math.abs(state.vy) > 0.001;
   if (turning) return "turn";
   if (walking) return "walk";
-  return "stop";
+  return "stand";
 }
 
 const pressed = new Set();
@@ -204,6 +253,7 @@ function keyboardEasingTick() {
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
   if (!keyMap.has(key)) return;
+  if (!canMove()) return;
   if (e.target instanceof HTMLElement && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
     return;
   }
@@ -240,10 +290,13 @@ resetHeadingBtn.addEventListener("click", () => {
   lastHeadingTsMs = performance.now();
   updateTelemetry();
 });
+poseInitBtn.addEventListener("click", () => setPose("init"));
+poseStandBtn.addEventListener("click", () => setPose("stand"));
 
 async function sendState() {
   state.mode = resolveMode();
   state.speed = computeDynamicSpeed();
+  renderPoseState();
   updateHeadingEstimate(state.mode);
   updateTelemetry();
   try {
@@ -267,10 +320,11 @@ async function sendState() {
 }
 
 setInterval(sendState, 40);
+setPose("init");
 updateTelemetry();
 window.addEventListener("beforeunload", () => {
   navigator.sendBeacon(
     "/api/control",
-    JSON.stringify({ mode: "stop", vx: 0, vy: 0, turn: 0, speed: state.speed, height: state.height, client_id: clientId })
+    JSON.stringify({ mode: state.pose === "stand" ? "stand" : "init", vx: 0, vy: 0, turn: 0, speed: 0, height: state.height, client_id: clientId })
   );
 });

@@ -35,7 +35,7 @@ SHARED_UI_DIR = Path(__file__).resolve().parents[1] / "shared_ui"
 
 @dataclass
 class ControlState:
-    mode: str = "stop"  # stop, walk, turn, stance
+    mode: str = "init"  # init, stand, stop, walk, turn, stance
     vx: float = 0.0      # -1..1
     vy: float = 0.0      # -1..1
     turn: float = 0.0    # -1..1
@@ -385,7 +385,7 @@ def control_loop(shared: SharedState, controller: HexapodController) -> None:
         state = shared.get()
         stale = (time.time() - state.updated_at) > COMMAND_TIMEOUT_S
         if stale:
-            state.mode = "stop"
+            state.mode = state.mode if state.mode in {"init", "stand"} else "stand"
             state.vx = 0.0
             state.vy = 0.0
             state.turn = 0.0

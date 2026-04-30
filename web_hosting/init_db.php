@@ -10,7 +10,7 @@ try {
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS hexapod_command (
             id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-            mode VARCHAR(16) NOT NULL DEFAULT "stop",
+            mode VARCHAR(16) NOT NULL DEFAULT "init",
             vx FLOAT NOT NULL DEFAULT 0,
             vy FLOAT NOT NULL DEFAULT 0,
             turn_rate FLOAT NOT NULL DEFAULT 0,
@@ -57,7 +57,7 @@ try {
          VALUES (1, :mode, 0, 0, 0, 0.4, 0, "", "", NULL)
          ON DUPLICATE KEY UPDATE mode = VALUES(mode)'
     );
-    $stmt->execute([':mode' => 'stop']);
+    $stmt->execute([':mode' => 'init']);
 } catch (Throwable $e) {
     $payload = ['ok' => false, 'error' => 'db_query_failed'];
     if (defined('DEBUG_ERRORS') && DEBUG_ERRORS === true) {

@@ -1,9 +1,9 @@
-from math import *
+from math import cos, pi, radians, sin
 import time
 try:
     import servo_control
     is_simulate = False
-except:
+except ImportError:
     is_simulate = True
 class Tripot_gait:
     def __init__(self, beta_ang = pi/4):
@@ -217,16 +217,3 @@ class Tripot_gait:
             self.turn_step(legs, 1.0 if angle >= 0 else -1.0, abs(angle), 100, body_height, S, A, 50, xpos)
             time.sleep(0.002)
             
-if __name__ == '__main__':
-    import legs_IK
-    legs = [
-        legs_IK.SpiderLeg("legi", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legj", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legk", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legl", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legm", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legn", 43.8, 88, 166, [0,1,2])
-    ]
-    # Tripot_gait().turning(legs)
-    for leg in legs:
-        leg.set_angles([0, 0, 0])

@@ -4,33 +4,49 @@ import sys
 import time
 import ujson
 import uselect
-from math import atan2, degrees, sqrt
+from math import atan2, cos, degrees, pi, sqrt
 import legs_IK
 import tripot_gait
+import servo_control
 
 FAILSAFE_S = 0.7
 FAILSAFE_HOLD_S = 0.25
 FAILSAFE_DECAY_S = 1.10
-CONTROL_HZ = 50
+CONTROL_HZ = 30
 CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 SAFE_POWER_MODE = True
+ANGLE_PRINT_MS = 250
+INIT_START_STAGGER_S = 0.12
+INIT_ANGLES = [0, -50, 130]
+STAND_ANGLES = [0, 28, 115]
+STAND_TRANSITION_S = 3.0
+STAND_TRANSITION_STEPS = 150
+LEG_CONFIGS = (
+    # Use pins=None for legs that are not physically connected.
+    ("legi", [0, 1, 2]),
+    ("legj", [3,4,5]),
+    ("legk", [6,7,8]),
+    ("legl", [9,10,11]),
+    ("legm", [12,13,14]),
+    ("legn", [15,16,17]),
+)
 
 # Safe-power profile: reduce peak current spikes from aggressive gait changes.
 SAFE_WALK_SPEED_SCALE = 0.88
-SAFE_WALK_STRIDE_SCALE = 0.88
-SAFE_WALK_AMPLITUDE_SCALE = 0.84
+SAFE_WALK_STRIDE_SCALE = 0.78
+SAFE_WALK_AMPLITUDE_SCALE = 0.72
 
-SAFE_TURN_SPEED_CAP = 0.45
-SAFE_TURN_INPUT_SCALE = 0.45
-SAFE_TURN_AMPLITUDE_SCALE = 0.65
-SAFE_TURN_ANGLE_SCALE = 0.45
+SAFE_TURN_SPEED_CAP = 0.35
+SAFE_TURN_INPUT_SCALE = 0.35
+SAFE_TURN_AMPLITUDE_SCALE = 0.55
+SAFE_TURN_ANGLE_SCALE = 0.35
 TURN_DEADBAND = 0.10
 TURN_ACCEL_PER_TICK = 0.02
 TURN_DECEL_PER_TICK = 0.07
 
 last_cmd_ms = time.ticks_ms()
 last_cmd = {
-    "mode": "stop",
+    "mode": "init",
     "vx": 0.0,
     "vy": 0.0,
     "turn": 0.0,
@@ -45,38 +61,80 @@ class HexapodRobot:
 
     def __init__(self):
         self.tripot = tripot_gait.Tripot_gait()
+        servo_control.configure_shared_cluster([pins for _, pins in LEG_CONFIGS])
         self.last_mode = "stop"
         self.last_stop_height = None
-        self.smoothed_walk_angle = None
         self.smoothed_vx = 0.0
         self.smoothed_vy = 0.0
         self.walk_vector_alpha = 0.18
         self.smoothed_turn = 0.0
+        self.last_angle_print_ms = time.ticks_ms()
         self.step_min = 20
-        self.step_max = 40
+        self.step_max = 48
         self.legs = [
-            legs_IK.SpiderLeg("legi", 43.8, 88, 166, [0, 1, 2]),
-            # legs_IK.SpiderLeg("legj", 43.8, 88, 166, [0,1,2]),
-            # legs_IK.SpiderLeg("legk", 43.8, 88, 166, [0,1,2]),
-            # legs_IK.SpiderLeg("legl", 43.8, 88, 166, [0,1,2]),
-            # legs_IK.SpiderLeg("legm", 43.8, 88, 166, [0,1,2]),
-            # legs_IK.SpiderLeg("legn", 43.8, 88, 166, [0,1,2]),
+            legs_IK.SpiderLeg(name, 43.8, 88, 166, pins)
+            for name, pins in LEG_CONFIGS
         ]
 
     def hexapod_init(self):
+        print("Init pose:", INIT_ANGLES)
         for leg in self.legs:
-            leg.set_angles([0, 0, 0])
+            leg.set_angles(INIT_ANGLES.copy())
+            time.sleep(INIT_START_STAGGER_S)
+        for leg in self.legs:
+            print(leg.name, "init angles:", leg.get_angles())
+        self._reset_control_state()
         time.sleep(1)
 
-    def _wrap_angle_deg(self, angle):
-        while angle <= -180:
-            angle += 360
-        while angle > 180:
-            angle -= 360
-        return angle
+    def _transition_all_legs(self, target_angles, duration_s, steps):
+        if not self.legs:
+            return
 
-    def _angle_diff_deg(self, target, current):
-        return self._wrap_angle_deg(target - current)
+        start_by_leg = [leg.get_angles() for leg in self.legs]
+        target_by_leg = [
+            leg.normalize_angles([
+                target_angles[0] + legs_IK.SERVO_OFFSETS[0],
+                target_angles[1] + legs_IK.SERVO_OFFSETS[1],
+                target_angles[2] + legs_IK.SERVO_OFFSETS[2],
+            ])
+            for leg in self.legs
+        ]
+
+        for i in range(steps + 1):
+            t = i / steps
+            eased = -(cos(pi * t) - 1) / 2
+            for leg_idx, leg in enumerate(self.legs):
+                current = [
+                    start_by_leg[leg_idx][joint] + (target_by_leg[leg_idx][joint] - start_by_leg[leg_idx][joint]) * eased
+                    for joint in range(3)
+                ]
+                leg.theta1, leg.theta2, leg.theta3 = current
+                if leg.control is not None:
+                    leg.control.turn_angles(current)
+            time.sleep(duration_s / steps)
+
+        for leg in self.legs:
+            leg.forwardKinematics()
+
+    def _reset_control_state(self):
+        self.tripot.reset_walk_phase()
+        self.tripot.reset_turn_phase()
+        self.last_mode = "init"
+        self.last_stop_height = -125
+        self.smoothed_vx = 0.0
+        self.smoothed_vy = 0.0
+        self.smoothed_turn = 0.0
+
+    def _set_pose(self, mode, target_angles, duration_s):
+        if self.last_mode != mode:
+            print("Pose:", mode, target_angles)
+            self._transition_all_legs(target_angles, duration_s, STAND_TRANSITION_STEPS)
+            self.tripot.reset_walk_phase()
+            self.tripot.reset_turn_phase()
+            self._reset_walk_input()
+            self.smoothed_turn = 0.0
+            self.last_stop_height = None
+            self.last_mode = mode
 
     def _slew_turn(self, target_turn):
         """Smooth turn input to avoid reversal current spikes.
@@ -106,6 +164,27 @@ class HexapodRobot:
         self.smoothed_turn = max(-1.0, min(1.0, current))
         return self.smoothed_turn
 
+    def _print_leg_angles(self):
+        now_ms = time.ticks_ms()
+        if time.ticks_diff(now_ms, self.last_angle_print_ms) < ANGLE_PRINT_MS:
+            return
+        self.last_angle_print_ms = now_ms
+        for leg in self.legs:
+            print(leg.name, "current angles:", leg.get_angles())
+
+    def _stance_from_height(self, height):
+        stance_z = -125 + (height * 45)
+        xpos = 130 + (stance_z + 125) * (20 / 45)
+        return stance_z, max(110, min(150, xpos))
+
+    def _gait_step_for_speed(self, speed):
+        step = round(self.step_max - (self.step_max - self.step_min) * speed)
+        return max(self.step_min, min(self.step_max, int(step)))
+
+    def _reset_walk_input(self):
+        self.smoothed_vx = 0.0
+        self.smoothed_vy = 0.0
+
     def apply_command(self, cmd):
         """Live non-blocking gait control from web command packets."""
         mode = cmd.get("mode", "stop")
@@ -115,11 +194,16 @@ class HexapodRobot:
         speed = cmd.get("speed", 0.0)
         height = cmd.get("height", 0.0)
         speed = max(0.0, min(1.0, speed))
-        stance_z = -125 + (height * 45)   # exact: -170 .. -80
-        xpos = 130 + (stance_z + 125) * (20 / 45)  # ~0.4444
-        xpos = max(110, min(150, xpos))
-        gait_step = int(round(self.step_max - (self.step_max - self.step_min) * speed))
-        gait_step = max(self.step_min, min(self.step_max, gait_step))
+        stance_z, xpos = self._stance_from_height(height)
+        gait_step = self._gait_step_for_speed(speed)
+
+        if mode == "init":
+            self._set_pose("init", INIT_ANGLES, 1.0)
+            return
+
+        if mode == "stand":
+            self._set_pose("stand", STAND_ANGLES, STAND_TRANSITION_S)
+            return
 
         if mode == "stop":
             self.smoothed_turn = 0.0
@@ -129,9 +213,7 @@ class HexapodRobot:
                 self.tripot.reset_walk_phase()
                 self.tripot.reset_turn_phase()
                 self.last_stop_height = stance_z
-                self.smoothed_walk_angle = None
-                self.smoothed_vx = 0.0
-                self.smoothed_vy = 0.0
+                self._reset_walk_input()
             elif self.last_stop_height is None or abs(stance_z - self.last_stop_height) > 0.5:
                 for leg in self.legs:
                     leg.inverseKinematics([xpos, 0, stance_z], easing=0)
@@ -141,9 +223,7 @@ class HexapodRobot:
 
         if mode == "turn":
             self.last_stop_height = None
-            self.smoothed_walk_angle = None
-            self.smoothed_vx = 0.0
-            self.smoothed_vy = 0.0
+            self._reset_walk_input()
             if self.last_mode != "turn":
                 self.tripot.reset_turn_phase()
 
@@ -182,11 +262,9 @@ class HexapodRobot:
             walk_speed = speed
             if SAFE_POWER_MODE:
                 walk_speed = max(0.0, min(1.0, walk_speed * SAFE_WALK_SPEED_SCALE))
-            gait_step = int(round(self.step_max - (self.step_max - self.step_min) * walk_speed))
-            gait_step = max(self.step_min, min(self.step_max, gait_step))
+            gait_step = self._gait_step_for_speed(walk_speed)
             if self.last_mode != "walk":
                 self.tripot.reset_walk_phase()
-                self.smoothed_walk_angle = None
                 self.smoothed_vx = vx
                 self.smoothed_vy = vy
 
@@ -198,7 +276,6 @@ class HexapodRobot:
                 return
 
             walk_angle = degrees(atan2(self.smoothed_vy, self.smoothed_vx))
-            self.smoothed_walk_angle = walk_angle
             stride = max(30, int((60 + 100 * walk_speed) * min(1.0, mag)))
             if SAFE_POWER_MODE:
                 stride = max(28, int(stride * SAFE_WALK_STRIDE_SCALE))
@@ -214,6 +291,7 @@ class HexapodRobot:
                 step=gait_step,
                 xpos=xpos,
             )
+            self._print_leg_angles()
             self.last_mode = "walk"
 
 
@@ -251,8 +329,9 @@ def apply_command(cmd):
 
 
 def apply_failsafe():
+    safe_mode = "init" if last_cmd.get("mode") == "init" else "stand"
     stop_cmd = {
-        "mode": "stop",
+        "mode": safe_mode,
         "vx": 0.0,
         "vy": 0.0,
         "turn": 0.0,
@@ -261,6 +340,17 @@ def apply_failsafe():
         "ts": 0.0,
     }
     apply_command(stop_cmd)
+
+
+def movement_mode_from_command(cmd):
+    mode = cmd.get("mode", "stop")
+    if mode in ("init", "stand"):
+        return mode
+    if abs(cmd.get("turn", 0.0)) > 0.02:
+        return "turn"
+    if abs(cmd.get("vx", 0.0)) > 0.02 or abs(cmd.get("vy", 0.0)) > 0.02:
+        return "walk"
+    return "stand"
 
 
 def apply_soft_failsafe(elapsed_ms):
@@ -281,7 +371,7 @@ def apply_soft_failsafe(elapsed_ms):
     # Linear decay from 1 -> 0 during decay window.
     ratio = max(0.0, 1.0 - (t / decay_ms))
     soft_cmd = {
-        "mode": "turn" if abs(last_cmd.get("turn", 0.0)) > 0.02 else ("walk" if (abs(last_cmd.get("vx", 0.0)) > 0.02 or abs(last_cmd.get("vy", 0.0)) > 0.02) else "stop"),
+        "mode": movement_mode_from_command(last_cmd),
         "vx": last_cmd.get("vx", 0.0) * ratio,
         "vy": last_cmd.get("vy", 0.0) * ratio,
         "turn": last_cmd.get("turn", 0.0) * ratio,
@@ -290,7 +380,7 @@ def apply_soft_failsafe(elapsed_ms):
         "ts": 0.0,
     }
     if ratio < 0.02:
-        soft_cmd["mode"] = "stop"
+        soft_cmd["mode"] = "init" if last_cmd.get("mode") == "init" else "stand"
     apply_command(soft_cmd)
 
 
