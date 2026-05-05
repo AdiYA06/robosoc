@@ -89,9 +89,9 @@ class SpiderLeg:
     def get_target(self):
         return self.joints[3]
 
-    def inverseKinematics(self, target = None, easing = 0):
+    def calculate_inverse_angles(self, target = None):
         """
-            Calculate the joint angles required to reach a target position, and set_angle.
+            Calculate the joint angles required to reach a target position.
             Args:
                 target(list of coordinate - xyz): a list of joint position in unit same as the length of legs.
             Return:
@@ -128,7 +128,17 @@ class SpiderLeg:
             theta2 = phi1 - phi3
         
         theta3 = phi1 + phi2
-        ang = [degrees(theta1), degrees(theta2), degrees(theta3)]
+        return [degrees(theta1), degrees(theta2), degrees(theta3)]
+
+    def inverseKinematics(self, target = None, easing = 0):
+        """
+            Calculate the joint angles required to reach a target position, and set_angle.
+            Args:
+                target(list of coordinate - xyz): a list of joint position in unit same as the length of legs.
+            Return:
+                list: a list of joint angles required to reach the position in degrees.
+        """
+        ang = self.calculate_inverse_angles(target)
         ang1 = ang.copy()
         self.set_angles(ang, easing)
         self.forwardKinematics()

@@ -11,6 +11,8 @@ SERVO_MAX_US = 2500
 
 _SHARED_CLUSTER = None
 _SHARED_PIN_TO_INDEX = {}
+_BATCH_DEPTH = 0
+_BATCH_PULSES = []
 
 
 def clamp_angle(angle_deg):
@@ -42,6 +44,41 @@ def configure_shared_cluster(pin_groups):
     print("ServoCluster connected pins", pins)
 
 
+def begin_batch():
+    global _BATCH_DEPTH
+    _BATCH_DEPTH += 1
+
+
+def end_batch():
+    global _BATCH_DEPTH, _BATCH_PULSES
+
+    if _BATCH_DEPTH > 0:
+        _BATCH_DEPTH -= 1
+    if _BATCH_DEPTH != 0:
+        return
+
+    pending = _BATCH_PULSES
+    _BATCH_PULSES = []
+    if _SHARED_CLUSTER is None:
+        return
+    # Flush by joint index instead of by leg. This avoids visibly completing
+    # one whole leg before the next leg starts when pulse writes are slow.
+    for joint_idx in range(3):
+        for pending_joint_idx, servo_index, pulse_us in pending:
+            if pending_joint_idx == joint_idx:
+                _SHARED_CLUSTER.pulse(servo_index, pulse_us)
+    for pending_joint_idx, servo_index, pulse_us in pending:
+        if pending_joint_idx >= 3:
+            _SHARED_CLUSTER.pulse(servo_index, pulse_us)
+
+
+def write_pulse(servo_index, pulse_us, joint_idx=0):
+    if _BATCH_DEPTH > 0:
+        _BATCH_PULSES.append((joint_idx, servo_index, pulse_us))
+        return
+    _SHARED_CLUSTER.pulse(servo_index, pulse_us)
+
+
 class servo_movement:
     def __init__(self, pin_list):
         self.pin_list = list(pin_list)
@@ -64,7 +101,7 @@ class servo_movement:
             if last is not None and abs(angle - last) < self.angle_deadband:
                 continue
             self.last_angles[idx] = angle
-            _SHARED_CLUSTER.pulse(self.servo_indexes[idx], angle_to_pulse_us(angle))
+            write_pulse(self.servo_indexes[idx], angle_to_pulse_us(angle), idx)
 
     def turn_angles_eased(self, target_angles, pre_angles, duration=0.2, steps=200):
         start_angles = list(pre_angles)

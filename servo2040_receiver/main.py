@@ -16,11 +16,13 @@ CONTROL_HZ = 30
 CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 SAFE_POWER_MODE = True
 ANGLE_PRINT_MS = 250
-INIT_START_STAGGER_S = 0.12
-INIT_ANGLES = [0, -50, 130]
+INIT_START_STAGGER_S = 0.0
+INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
 STAND_TRANSITION_S = 3.0
 STAND_TRANSITION_STEPS = 150
+DEMO_ON_BOOT = False
+DEMO_REPEAT = False
 LEG_CONFIGS = (
     # Use pins=None for legs that are not physically connected.
     ("legi", [0, 1, 2]),
@@ -78,9 +80,14 @@ class HexapodRobot:
 
     def hexapod_init(self):
         print("Init pose:", INIT_ANGLES)
-        for leg in self.legs:
-            leg.set_angles(INIT_ANGLES.copy())
-            time.sleep(INIT_START_STAGGER_S)
+        servo_control.begin_batch()
+        try:
+            for leg in self.legs:
+                leg.set_angles(INIT_ANGLES.copy())
+                if INIT_START_STAGGER_S > 0:
+                    time.sleep(INIT_START_STAGGER_S)
+        finally:
+            servo_control.end_batch()
         for leg in self.legs:
             print(leg.name, "init angles:", leg.get_angles())
         self._reset_control_state()
@@ -103,14 +110,18 @@ class HexapodRobot:
         for i in range(steps + 1):
             t = i / steps
             eased = -(cos(pi * t) - 1) / 2
-            for leg_idx, leg in enumerate(self.legs):
-                current = [
-                    start_by_leg[leg_idx][joint] + (target_by_leg[leg_idx][joint] - start_by_leg[leg_idx][joint]) * eased
-                    for joint in range(3)
-                ]
-                leg.theta1, leg.theta2, leg.theta3 = current
-                if leg.control is not None:
-                    leg.control.turn_angles(current)
+            servo_control.begin_batch()
+            try:
+                for leg_idx, leg in enumerate(self.legs):
+                    current = [
+                        start_by_leg[leg_idx][joint] + (target_by_leg[leg_idx][joint] - start_by_leg[leg_idx][joint]) * eased
+                        for joint in range(3)
+                    ]
+                    leg.theta1, leg.theta2, leg.theta3 = current
+                    if leg.control is not None:
+                        leg.control.turn_angles(current)
+            finally:
+                servo_control.end_batch()
             time.sleep(duration_s / steps)
 
         for leg in self.legs:
@@ -135,6 +146,19 @@ class HexapodRobot:
             self.smoothed_turn = 0.0
             self.last_stop_height = None
             self.last_mode = mode
+
+    def _apply_same_ik_target(self, target):
+        angles_by_leg = []
+        for leg in self.legs:
+            angles_by_leg.append((leg, leg.calculate_inverse_angles(target)))
+        servo_control.begin_batch()
+        try:
+            for leg, angles in angles_by_leg:
+                leg.set_angles(angles)
+        finally:
+            servo_control.end_batch()
+        for leg, _ in angles_by_leg:
+            leg.forwardKinematics()
 
     def _slew_turn(self, target_turn):
         """Smooth turn input to avoid reversal current spikes.
@@ -185,6 +209,48 @@ class HexapodRobot:
         self.smoothed_vx = 0.0
         self.smoothed_vy = 0.0
 
+    def _demo_hold_command(self, label, cmd, duration_ms):
+        print("Demo:", label)
+        end_ms = time.ticks_add(time.ticks_ms(), duration_ms)
+        while time.ticks_diff(end_ms, time.ticks_ms()) > 0:
+            self.apply_command(cmd)
+            time.sleep_ms(CONTROL_DT_MS)
+
+    def demo_movement(self):
+        """Run a local straight-walk demo without web or serial commands."""
+        print("Demo movement starting")
+        self.apply_command({
+            "mode": "stand",
+            "vx": 0.0,
+            "vy": 0.0,
+            "turn": 0.0,
+            "speed": 0.0,
+            "height": 0.0,
+            "ts": 0.0,
+        })
+        time.sleep_ms(500)
+
+        self._demo_hold_command("walk forward", {
+            "mode": "walk",
+            "vx": 1.0,
+            "vy": 0.0,
+            "turn": 0.0,
+            "speed": 0.35,
+            "height": 0.0,
+            "ts": 0.0,
+        }, 8000)
+
+        self.apply_command({
+            "mode": "stand",
+            "vx": 0.0,
+            "vy": 0.0,
+            "turn": 0.0,
+            "speed": 0.0,
+            "height": 0.0,
+            "ts": 0.0,
+        })
+        print("Demo movement complete")
+
     def apply_command(self, cmd):
         """Live non-blocking gait control from web command packets."""
         mode = cmd.get("mode", "stop")
@@ -208,15 +274,13 @@ class HexapodRobot:
         if mode == "stop":
             self.smoothed_turn = 0.0
             if self.last_mode != "stop":
-                for leg in self.legs:
-                    leg.inverseKinematics([xpos, 0, stance_z], easing=1)
+                self._apply_same_ik_target([xpos, 0, stance_z])
                 self.tripot.reset_walk_phase()
                 self.tripot.reset_turn_phase()
                 self.last_stop_height = stance_z
                 self._reset_walk_input()
             elif self.last_stop_height is None or abs(stance_z - self.last_stop_height) > 0.5:
-                for leg in self.legs:
-                    leg.inverseKinematics([xpos, 0, stance_z], easing=0)
+                self._apply_same_ik_target([xpos, 0, stance_z])
                 self.last_stop_height = stance_z
             self.last_mode = "stop"
             return
@@ -328,6 +392,12 @@ def apply_command(cmd):
     robot.apply_command(cmd)
 
 
+def demo_movement():
+    if robot is None:
+        return
+    robot.demo_movement()
+
+
 def apply_failsafe():
     safe_mode = "init" if last_cmd.get("mode") == "init" else "stand"
     stop_cmd = {
@@ -391,6 +461,13 @@ def main():
     robot = HexapodRobot()
     print("Running hexapod init...")
     robot.hexapod_init()
+
+    if DEMO_ON_BOOT:
+        while True:
+            demo_movement()
+            if not DEMO_REPEAT:
+                break
+
     print("Init complete. Starting serial receiver...")
 
     poll = uselect.poll()
