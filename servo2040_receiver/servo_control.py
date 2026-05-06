@@ -95,13 +95,16 @@ class servo_movement:
 
     def turn_angles(self, angles):
         for idx, angle in enumerate(angles):
-            if idx >= len(self.servo_indexes):
-                break
-            last = self.last_angles[idx]
-            if last is not None and abs(angle - last) < self.angle_deadband:
-                continue
-            self.last_angles[idx] = angle
-            write_pulse(self.servo_indexes[idx], angle_to_pulse_us(angle), idx)
+            self.turn_angle(idx, angle)
+
+    def turn_angle(self, idx, angle):
+        if idx >= len(self.servo_indexes):
+            return
+        last = self.last_angles[idx]
+        if last is not None and abs(angle - last) < self.angle_deadband:
+            return
+        self.last_angles[idx] = angle
+        write_pulse(self.servo_indexes[idx], angle_to_pulse_us(angle), idx)
 
     def turn_angles_eased(self, target_angles, pre_angles, duration=0.2, steps=200):
         start_angles = list(pre_angles)

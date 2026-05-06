@@ -92,10 +92,11 @@ class HexapodRobot:
 
         current = leg.get_angles()
         for joint_idx in range(3):
+            print("Init joint:", joint_idx)
             current[joint_idx] = target_angles[joint_idx]
             leg.theta1, leg.theta2, leg.theta3 = current
             if leg.control is not None:
-                leg.control.turn_angles(current)
+                leg.control.turn_angle(joint_idx, current[joint_idx])
             if INIT_JOINT_STAGGER_S > 0:
                 time.sleep(INIT_JOINT_STAGGER_S)
 
