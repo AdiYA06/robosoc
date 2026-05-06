@@ -29,10 +29,11 @@ LEG_CONFIGS = (
     # Use pins=None for legs that are not physically connected.
     ("legi", [0, 1, 2]),
     ("legj", [3,4,5]),
-    ("legk", [6,7,8]),
-    ("legl", [9,10,11]),
-    ("legm", [12,13,14]),
-    ("legn", [15,16,17]),
+    # Add the remaining legs back one at a time while diagnosing init resets.
+    # ("legk", [6,7,8]),
+    # ("legl", [9,10,11]),
+    # ("legm", [12,13,14]),
+    # ("legn", [15,16,17]),
 )
 
 TURN_DEADBAND = 0.10
@@ -92,7 +93,8 @@ class HexapodRobot:
 
         current = leg.get_angles()
         for joint_idx in range(3):
-            print("Init joint:", joint_idx)
+            pin = leg.control.pin_list[joint_idx] if leg.control is not None else None
+            print("Init joint:", joint_idx, "pin:", pin)
             current[joint_idx] = target_angles[joint_idx]
             leg.theta1, leg.theta2, leg.theta3 = current
             if leg.control is not None:
