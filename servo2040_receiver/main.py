@@ -24,6 +24,8 @@ INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
 STAND_TRANSITION_S = 3.0
 STAND_TRANSITION_STEPS = 150
+SHUTDOWN_TRANSITION_S = 1.5
+SHUTDOWN_TRANSITION_STEPS = 60
 DEMO_ON_BOOT = False
 DEMO_REPEAT = False
 LEG_CONFIGS = (
@@ -156,6 +158,15 @@ class HexapodRobot:
             self.smoothed_turn = 0.0
             self.last_stop_height = None
             self.last_mode = mode
+
+    def shutdown_pose(self):
+        print("Shutdown pose")
+        self.smoothed_turn = 0.0
+        self._reset_walk_input()
+        self.tripot.reset_walk_phase()
+        self.tripot.reset_turn_phase()
+        self._transition_all_legs(STAND_ANGLES, SHUTDOWN_TRANSITION_S, SHUTDOWN_TRANSITION_STEPS)
+        self.last_mode = "stand"
 
     def _apply_same_ik_target(self, target):
         angles_by_leg = []
@@ -474,29 +485,35 @@ def main():
     print("Servo 2040 receiver started")
     next_tick_ms = time.ticks_ms()
 
-    while True:
-        events = poll.poll(0)
-        if events:
-            line = sys.stdin.readline()
-            if line:
-                try:
-                    payload = ujson.loads(line)
-                    cmd = sanitize(payload)
-                    last_cmd = cmd
-                    last_cmd_ms = time.ticks_ms()
-                except Exception:
-                    pass
+    try:
+        while True:
+            events = poll.poll(0)
+            if events:
+                line = sys.stdin.readline()
+                if line:
+                    try:
+                        payload = ujson.loads(line)
+                        cmd = sanitize(payload)
+                        last_cmd = cmd
+                        last_cmd_ms = time.ticks_ms()
+                    except Exception:
+                        pass
 
-        now_ms = time.ticks_ms()
-        if time.ticks_diff(now_ms, next_tick_ms) >= 0:
-            elapsed = time.ticks_diff(now_ms, last_cmd_ms)
-            if elapsed > int(FAILSAFE_S * 1000):
-                apply_soft_failsafe(elapsed)
-            else:
-                apply_command(last_cmd)
-            next_tick_ms = time.ticks_add(next_tick_ms, CONTROL_DT_MS)
+            now_ms = time.ticks_ms()
+            if time.ticks_diff(now_ms, next_tick_ms) >= 0:
+                elapsed = time.ticks_diff(now_ms, last_cmd_ms)
+                if elapsed > int(FAILSAFE_S * 1000):
+                    apply_soft_failsafe(elapsed)
+                else:
+                    apply_command(last_cmd)
+                next_tick_ms = time.ticks_add(next_tick_ms, CONTROL_DT_MS)
 
-        time.sleep_ms(1)
+            time.sleep_ms(1)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt: stopping safely")
+        if robot is not None:
+            robot.shutdown_pose()
+        raise
 
 
 main()
