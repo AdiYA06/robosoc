@@ -14,8 +14,9 @@ FAILSAFE_HOLD_S = 0.25
 FAILSAFE_DECAY_S = 1.10
 CONTROL_HZ = 30
 CONTROL_DT_MS = int(1000 / CONTROL_HZ)
-SAFE_POWER_MODE = True
 ANGLE_PRINT_MS = 250
+MAX_WALK_SPEED = 0.7
+MAX_WALK_STRIDE = 170
 INIT_START_STAGGER_S = 0.0
 INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
@@ -33,15 +34,6 @@ LEG_CONFIGS = (
     ("legn", [15,16,17]),
 )
 
-# Safe-power profile: reduce peak current spikes from aggressive gait changes.
-SAFE_WALK_SPEED_SCALE = 0.88
-SAFE_WALK_STRIDE_SCALE = 0.78
-SAFE_WALK_AMPLITUDE_SCALE = 0.72
-
-SAFE_TURN_SPEED_CAP = 0.35
-SAFE_TURN_INPUT_SCALE = 0.35
-SAFE_TURN_AMPLITUDE_SCALE = 0.55
-SAFE_TURN_ANGLE_SCALE = 0.35
 TURN_DEADBAND = 0.10
 TURN_ACCEL_PER_TICK = 0.02
 TURN_DECEL_PER_TICK = 0.07
@@ -235,7 +227,7 @@ class HexapodRobot:
             "vx": 1.0,
             "vy": 0.0,
             "turn": 0.0,
-            "speed": 0.35,
+            "speed": 0.7,
             "height": 0.0,
             "ts": 0.0,
         }, 8000)
@@ -261,7 +253,6 @@ class HexapodRobot:
         height = cmd.get("height", 0.0)
         speed = max(0.0, min(1.0, speed))
         stance_z, xpos = self._stance_from_height(height)
-        gait_step = self._gait_step_for_speed(speed)
 
         if mode == "init":
             self._set_pose("init", INIT_ANGLES, 1.0)
@@ -291,22 +282,14 @@ class HexapodRobot:
             if self.last_mode != "turn":
                 self.tripot.reset_turn_phase()
 
-            # Prevent hard left<->right reversals from creating current spikes.
             turn_speed = speed
-            if SAFE_POWER_MODE:
-                turn_speed = min(turn_speed, SAFE_TURN_SPEED_CAP)
-                turn = max(-1.0, min(1.0, turn * SAFE_TURN_INPUT_SCALE))
-            else:
-                turn = max(-1.0, min(1.0, turn))
+            gait_step = self._gait_step_for_speed(turn_speed)
+            turn = max(-1.0, min(1.0, turn))
             turn_cmd = self._slew_turn(turn)
             turn_mag = abs(turn_cmd)
 
             turn_max_angle = 10 + 30 * turn_mag
-            if SAFE_POWER_MODE:
-                turn_max_angle *= SAFE_TURN_ANGLE_SCALE
             turn_A = 20 + int(20 * turn_speed)
-            if SAFE_POWER_MODE:
-                turn_A = int(turn_A * SAFE_TURN_AMPLITUDE_SCALE)
             self.tripot.turn_step(
                 self.legs,
                 turn_ratio=turn_cmd,
@@ -323,9 +306,7 @@ class HexapodRobot:
         if mode == "walk":
             self.smoothed_turn = 0.0
             self.last_stop_height = None
-            walk_speed = speed
-            if SAFE_POWER_MODE:
-                walk_speed = max(0.0, min(1.0, walk_speed * SAFE_WALK_SPEED_SCALE))
+            walk_speed = min(speed, MAX_WALK_SPEED)
             gait_step = self._gait_step_for_speed(walk_speed)
             if self.last_mode != "walk":
                 self.tripot.reset_walk_phase()
@@ -340,12 +321,9 @@ class HexapodRobot:
                 return
 
             walk_angle = degrees(atan2(self.smoothed_vy, self.smoothed_vx))
-            stride = max(30, int((60 + 100 * walk_speed) * min(1.0, mag)))
-            if SAFE_POWER_MODE:
-                stride = max(28, int(stride * SAFE_WALK_STRIDE_SCALE))
+            stride = max(40, int((80 + 130 * walk_speed) * min(1.0, mag)))
+            stride = min(MAX_WALK_STRIDE, stride)
             walk_A = 15 + int(20 * walk_speed)
-            if SAFE_POWER_MODE:
-                walk_A = int(walk_A * SAFE_WALK_AMPLITUDE_SCALE)
             self.tripot.walk_step(
                 self.legs,
                 angle=walk_angle,
@@ -355,7 +333,8 @@ class HexapodRobot:
                 step=gait_step,
                 xpos=xpos,
             )
-            self._print_leg_angles()
+            # Printing during gait can overload Thonny/USB and make disconnects harder to diagnose.
+            # self._print_leg_angles()
             self.last_mode = "walk"
 
 
