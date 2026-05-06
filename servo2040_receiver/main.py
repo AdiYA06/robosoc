@@ -17,8 +17,9 @@ CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 ANGLE_PRINT_MS = 250
 MAX_WALK_SPEED = 0.7
 MAX_WALK_STRIDE = 170
-INIT_START_STAGGER_S = 0.12
-INIT_JOINT_STAGGER_S = 0.08
+POWER_ON_SETTLE_S = 2.0
+INIT_START_STAGGER_S = 0.35
+INIT_JOINT_STAGGER_S = 0.18
 INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
 STAND_TRANSITION_S = 3.0
@@ -455,6 +456,8 @@ def main():
 
     print("Building robot config...")
     robot = HexapodRobot()
+    print("Power settle:", POWER_ON_SETTLE_S, "s")
+    time.sleep(POWER_ON_SETTLE_S)
     print("Running hexapod init...")
     robot.hexapod_init()
 
