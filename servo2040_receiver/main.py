@@ -18,6 +18,7 @@ ANGLE_PRINT_MS = 250
 MAX_WALK_SPEED = 0.7
 MAX_WALK_STRIDE = 170
 INIT_START_STAGGER_S = 0.12
+INIT_JOINT_STAGGER_S = 0.08
 INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
 STAND_TRANSITION_S = 3.0
@@ -73,13 +74,30 @@ class HexapodRobot:
     def hexapod_init(self):
         print("Init pose:", INIT_ANGLES)
         for leg in self.legs:
-            leg.set_angles(INIT_ANGLES.copy())
+            print("Init leg:", leg.name)
+            self._set_leg_angles_joint_by_joint(leg, INIT_ANGLES)
             if INIT_START_STAGGER_S > 0:
                 time.sleep(INIT_START_STAGGER_S)
         for leg in self.legs:
             print(leg.name, "init angles:", leg.get_angles())
         self._reset_control_state()
         time.sleep(1)
+
+    def _set_leg_angles_joint_by_joint(self, leg, angles):
+        target_angles = leg.normalize_angles([
+            angles[0] + legs_IK.SERVO_OFFSETS[0],
+            angles[1] + legs_IK.SERVO_OFFSETS[1],
+            angles[2] + legs_IK.SERVO_OFFSETS[2],
+        ])
+
+        current = leg.get_angles()
+        for joint_idx in range(3):
+            current[joint_idx] = target_angles[joint_idx]
+            leg.theta1, leg.theta2, leg.theta3 = current
+            if leg.control is not None:
+                leg.control.turn_angles(current)
+            if INIT_JOINT_STAGGER_S > 0:
+                time.sleep(INIT_JOINT_STAGGER_S)
 
     def _transition_all_legs(self, target_angles, duration_s, steps):
         if not self.legs:
