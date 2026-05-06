@@ -17,7 +17,7 @@ CONTROL_DT_MS = int(1000 / CONTROL_HZ)
 ANGLE_PRINT_MS = 250
 MAX_WALK_SPEED = 0.7
 MAX_WALK_STRIDE = 170
-INIT_START_STAGGER_S = 0.0
+INIT_START_STAGGER_S = 0.12
 INIT_ANGLES = [0, 28, 115]
 STAND_ANGLES = [0, 28, 115]
 STAND_TRANSITION_S = 3.0
@@ -72,14 +72,10 @@ class HexapodRobot:
 
     def hexapod_init(self):
         print("Init pose:", INIT_ANGLES)
-        servo_control.begin_batch()
-        try:
-            for leg in self.legs:
-                leg.set_angles(INIT_ANGLES.copy())
-                if INIT_START_STAGGER_S > 0:
-                    time.sleep(INIT_START_STAGGER_S)
-        finally:
-            servo_control.end_batch()
+        for leg in self.legs:
+            leg.set_angles(INIT_ANGLES.copy())
+            if INIT_START_STAGGER_S > 0:
+                time.sleep(INIT_START_STAGGER_S)
         for leg in self.legs:
             print(leg.name, "init angles:", leg.get_angles())
         self._reset_control_state()
