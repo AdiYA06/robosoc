@@ -67,6 +67,11 @@ python3 web_controller/pi_control_server.py \
   --serial-required
 ```
 
+python3 web_controller/pi_control_server.py \
+  --serial-port /dev/cu.usbmodem2101 \
+  --baud 115200 \
+  --serial-required
+
 Then open:
 
 `http://<local-ip>:8080`
