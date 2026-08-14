@@ -29,7 +29,7 @@
 
       <section class="pad-grid">
         <div class="panel">
-          <h2>Walk Vector</h2>
+          <h2>Walk Vector <span class="meta" id="walk-angle">angle --</span></h2>
           <div class="pad" id="move-pad">
             <div class="knob" id="move-knob"></div>
           </div>
@@ -37,7 +37,7 @@
         </div>
 
         <div class="panel">
-          <h2>Turn</h2>
+          <h2>Turn <span class="meta" id="turn-angle">angle +0°</span></h2>
           <div class="pad" id="turn-pad">
             <div class="knob" id="turn-knob"></div>
           </div>
@@ -46,7 +46,22 @@
       </section>
 
       <section class="controls panel">
+        <div class="pose-row">
+          <div>
+            <p class="key-help" id="pose-readout">state init</p>
+            <p class="key-help">Joystick and keyboard are enabled only in stand.</p>
+          </div>
+          <div class="pose-buttons">
+            <button id="pose-init" class="secondary-btn" type="button">Reset To Init</button>
+            <button id="pose-stand" class="secondary-btn" type="button">Stand</button>
+          </div>
+        </div>
         <p class="key-help">Keyboard: <strong>WASD</strong> walk, <strong>J/K</strong> turn</p>
+        <p class="key-help" id="speed-readout">speed 0.00</p>
+        <div class="heading-row">
+          <p class="key-help" id="heading-readout">heading +0°</p>
+          <button id="reset-heading" class="secondary-btn" type="button">Reset Heading</button>
+        </div>
         <label>
           Body Height
           <input type="range" id="height" min="-1" max="1" step="0.01" value="0" />

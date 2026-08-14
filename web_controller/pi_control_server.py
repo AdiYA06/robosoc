@@ -35,7 +35,7 @@ SHARED_UI_DIR = Path(__file__).resolve().parents[1] / "shared_ui"
 
 @dataclass
 class ControlState:
-    mode: str = "stop"  # stop, walk, turn, stance
+    mode: str = "init"  # init, stand, stop, walk, turn, stance
     vx: float = 0.0      # -1..1
     vy: float = 0.0      # -1..1
     turn: float = 0.0    # -1..1
@@ -126,9 +126,14 @@ def clamp(value: Any, lo: float, hi: float, default: float) -> float:
 class HexapodController:
     """Hook this class into your servo/gait code."""
 
-    def __init__(self, transport: "LineTransport") -> None:
+    def __init__(self, transport: "LineTransport", verbose_stream: bool = False, event_logs: bool = True) -> None:
         self.transport = transport
+        self.verbose_stream = verbose_stream
+        self.event_logs = event_logs
         self._last_print = 0.0
+        self._last_mode: str | None = None
+        self._last_moving = False
+        self._last_status_line = ""
 
     def apply(self, state: ControlState) -> None:
         packet = {
@@ -143,7 +148,11 @@ class HexapodController:
         self.transport.send_line(json.dumps(packet))
 
         now = time.time()
-        if now - self._last_print >= 0.15:
+        moving = abs(state.vx) > 0.02 or abs(state.vy) > 0.02 or abs(state.turn) > 0.02
+        mode_changed = state.mode != self._last_mode
+        movement_changed = moving != self._last_moving
+
+        if self.verbose_stream and (now - self._last_print >= 0.15):
             self._last_print = now
             print(
                 "mode={mode:>6} vx={vx:+.2f} vy={vy:+.2f} turn={turn:+.2f} "
@@ -156,6 +165,14 @@ class HexapodController:
                     height=state.height,
                 )
             )
+        elif self.event_logs and (mode_changed or movement_changed):
+            status_line = f"mode={state.mode} moving={'yes' if moving else 'no'} speed={state.speed:.2f}"
+            if status_line != self._last_status_line:
+                print(f"\r{status_line:<60}", end="", flush=True)
+                self._last_status_line = status_line
+
+        self._last_mode = state.mode
+        self._last_moving = moving
 
 
 class LineTransport:
@@ -177,9 +194,13 @@ class SerialTransport(LineTransport):
         self.baudrate = baudrate
         self.required = required
         self._serial = None
+        self._last_connect_attempt = 0.0
+        self._connect_retry_s = 0.8
+        self._last_connect_error = ""
         self._connect()
 
     def _connect(self) -> None:
+        self._last_connect_attempt = time.time()
         try:
             import serial  # type: ignore
         except Exception as exc:
@@ -191,21 +212,36 @@ class SerialTransport(LineTransport):
         try:
             self._serial = serial.Serial(self.port, self.baudrate, timeout=0.01)
             print(f"Serial transport connected: {self.port} @ {self.baudrate}")
+            self._last_connect_error = ""
         except Exception as exc:
             if self.required:
-                raise RuntimeError(f"Failed to open serial port {self.port}") from exc
-            print(f"Serial transport not available on {self.port}: {exc}")
+                msg = str(exc)
+                if msg != self._last_connect_error:
+                    print(f"Serial transport unavailable on {self.port}: {exc}")
+                    self._last_connect_error = msg
+            else:
+                print(f"Serial transport not available on {self.port}: {exc}")
             self._serial = None
 
     def send_line(self, text: str) -> None:
+        now = time.time()
+        if self._serial is None:
+            if (now - self._last_connect_attempt) >= self._connect_retry_s:
+                self._connect()
+            if self._serial is None:
+                return
+
         if self._serial is None:
             return
         try:
             self._serial.write((text + "\n").encode("utf-8"))
         except Exception:
+            try:
+                self._serial.close()
+            except Exception:
+                pass
             self._serial = None
-            if self.required:
-                raise
+            print("Serial write failed; will retry connection.")
 
     def close(self) -> None:
         if self._serial is not None:
@@ -349,7 +385,7 @@ def control_loop(shared: SharedState, controller: HexapodController) -> None:
         state = shared.get()
         stale = (time.time() - state.updated_at) > COMMAND_TIMEOUT_S
         if stale:
-            state.mode = "stop"
+            state.mode = state.mode if state.mode in {"init", "stand"} else "stand"
             state.vx = 0.0
             state.vy = 0.0
             state.turn = 0.0
@@ -364,6 +400,7 @@ def main() -> None:
     parser.add_argument("--serial-port", default=os.getenv("SERIAL_PORT", ""))
     parser.add_argument("--baud", type=int, default=int(os.getenv("SERIAL_BAUD", "115200")))
     parser.add_argument("--serial-required", action="store_true")
+    parser.add_argument("--verbose-stream", action="store_true", help="Print continuous state stream")
     parser.add_argument("--internet", action="store_true", help="Enable internet-ready mode (requires auth)")
     parser.add_argument("--auth-user", default=os.getenv("HEXAPOD_AUTH_USER", ""))
     parser.add_argument("--auth-pass", default=os.getenv("HEXAPOD_AUTH_PASS", ""))
@@ -385,7 +422,7 @@ def main() -> None:
         print("Serial forwarding disabled (no --serial-port).")
         transport = StdoutTransport()
 
-    controller = HexapodController(transport)
+    controller = HexapodController(transport, verbose_stream=args.verbose_stream)
 
     thread = threading.Thread(target=control_loop, args=(shared, controller), daemon=True)
     thread.start()

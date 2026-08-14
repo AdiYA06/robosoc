@@ -1,9 +1,9 @@
-from math import *
+from math import cos, pi, radians, sin
 import time
 try:
     import servo_control
     is_simulate = False
-except:
+except ImportError:
     is_simulate = True
 class Tripot_gait:
     def __init__(self, beta_ang = pi/4):
@@ -134,6 +134,21 @@ class Tripot_gait:
             ]
         return blended
 
+    def _apply_targets(self, legs, targets):
+        angles_by_leg = []
+        for leg in legs:
+            angles_by_leg.append((leg, leg.calculate_inverse_angles(targets[leg.name])))
+        if not is_simulate:
+            servo_control.begin_batch()
+        try:
+            for leg, angles in angles_by_leg:
+                leg.set_angles(angles)
+        finally:
+            if not is_simulate:
+                servo_control.end_batch()
+        for leg, _ in angles_by_leg:
+            leg.forwardKinematics()
+
     def reset_walk_phase(self, transition_steps = None):
         self.walk_t = 0
         self.walk_tripod_idx = 0
@@ -172,8 +187,7 @@ class Tripot_gait:
             targets = self._blend_targets(self.walk_start_targets, targets, alpha)
             self.walk_blend_remaining -= 1
 
-        for leg in legs:
-            leg.inverseKinematics(targets[leg.name])
+        self._apply_targets(legs, targets)
         self.walk_t, self.walk_tripod_idx = self._advance_phase(step, self.walk_t, self.walk_tripod_idx)
 
     def turn_step(self, legs, turn_ratio = 1.0, max_angle = 40, T = 100, body_height = None, S = -100, A = 28, step = 50, xpos = 150):
@@ -199,8 +213,7 @@ class Tripot_gait:
             targets = self._blend_targets(self.turn_start_targets, targets, alpha)
             self.turn_blend_remaining -= 1
 
-        for leg in legs:
-            leg.inverseKinematics(targets[leg.name])
+        self._apply_targets(legs, targets)
         self.turn_t, self.turn_tripod_idx = self._advance_phase(step, self.turn_t, self.turn_tripod_idx)
     
     def movement(self, legs, angle = 0, T = 120, body_height = None, S = -100, A = 20, step = 50, xpos = 150):
@@ -217,14 +230,3 @@ class Tripot_gait:
             self.turn_step(legs, 1.0 if angle >= 0 else -1.0, abs(angle), 100, body_height, S, A, 50, xpos)
             time.sleep(0.002)
             
-if __name__ == '__main__':
-    import legs_IK
-    legs = [
-        # legs_IK.SpiderLeg("legi", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legj", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legk", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legl", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legm", 43.8, 88, 166, [0,1,2]),
-        # legs_IK.SpiderLeg("legn", 43.8, 88, 166, [0,1,2])
-    ]
-    Tripot_gait().turning(legs)

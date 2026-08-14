@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
 import legs_IK
-import time
 import tripot_gait
-from math import *
+from math import pi
+
+
+LEG_NAMES = ("legi", "legj", "legk", "legl", "legm", "legn")
+
 
 class Simulator:
     def __init__(self, legs):
@@ -32,10 +35,8 @@ class Simulator:
 
     def plot_leg(self, leg, joint_positions):
         cfg = self.leg_config[leg.name]
-        # R = self.rot(cfg['angle'])
         R = self.tripot.legs_ROT_dict[leg.name]
         t = [cfg['x'], cfg['y'], 0]
-        # Display leg name near hip joint
         jp = joint_positions[2]
         hip_pos = [
             R[0][0]*jp[0] + R[0][1]*jp[1] + R[0][2]*jp[2] + t[0],
@@ -53,11 +54,8 @@ class Simulator:
             x.append(p_body[0])
             y.append(p_body[1])
             z.append(p_body[2])
-
-        # Plot leg segments
         self.ax.plot(x, y, z, "-o", linewidth=2, markersize=8)
 
-        # Keep the axes fixed but do NOT reset view
         range_limit = 300
         self.ax.set_xlim(-range_limit, range_limit)
         self.ax.set_ylim(-range_limit, range_limit)
@@ -102,16 +100,9 @@ class Simulator:
 
 if __name__ == '__main__':
     legs = [
-        legs_IK.SpiderLeg("legi", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legj", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legk", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legl", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legm", 43.8, 88, 166),
-        legs_IK.SpiderLeg("legn", 43.8, 88, 166)
+        legs_IK.SpiderLeg(name, 43.8, 88, 166)
+        for name in LEG_NAMES
     ]
-    for leg in legs:
-        # leg.set_angles([90, 30, 120])
-        pass
 
     sim = Simulator(legs)
     sim.movement(legs)

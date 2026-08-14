@@ -37,6 +37,12 @@ h1, h2, p {
   margin: 0;
 }
 
+.meta {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
 h1 {
   font-size: clamp(1.15rem, 3.8vw, 1.75rem);
 }
@@ -191,5 +197,59 @@ button {
 @media (max-width: 390px) {
   .pad {
     width: min(100%, 42vw);
+  }
+}
+
+.heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.secondary-btn {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  background: #233248;
+}
+
+.pose-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.pose-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.pose-buttons .active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent), transparent 55%);
+}
+
+.pad.disabled {
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
+@media (max-width: 520px) {
+  .heading-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pose-row,
+  .pose-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .secondary-btn {
+    width: 100%;
   }
 }
